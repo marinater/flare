@@ -5,8 +5,8 @@ var path = require('path')
 var cookieParser = require('cookie-parser')
 var logger = require('morgan')
 
-var discordOAuthRouter = require('../routes/discordOAuth')
-var authRouter = require('../routes/auth')
+var discordOAuthRouter = require('./routes/discordOAuth')
+var authRouter = require('./routes/auth')
 
 var app = express()
 
