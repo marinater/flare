@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title> Flare </title>
+
+	<style>
+
+	</style>
+</head>
+
+<body>
+	<div id="content">
+
+	</div>
+
+	<script>
+		const contentDiv = document.getElementById('content')
+		fetch('https://randomuser.me/api')
+			.then(res => res.json())
+			.then(data => contentDiv.innerText = JSON.stringify(data, null, '~~~~'))
+	</script>
+</body>
+
+</html>
