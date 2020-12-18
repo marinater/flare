@@ -128,9 +128,11 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('flare.open', openFlare(context))
     );
-    context.subscriptions.push(vscode.window.registerUriHandler({
-        handleUri: AccountOps.uriAuthHandler(context)
-    }));
+    context.subscriptions.push(
+        vscode.window.registerUriHandler({
+            handleUri: AccountOps.uriAuthHandler(context)
+        })
+    );
 }
 
 export function deactivate() {}
