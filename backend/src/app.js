@@ -5,8 +5,9 @@ var path = require('path')
 var cookieParser = require('cookie-parser')
 var logger = require('morgan')
 
-var discordOAuthRouter = require('./routes/discordOAuth')
-var authRouter = require('./routes/auth')
+var discordAuthRouter = require('./routes/auth/discord')
+var vscodeAuthRouter = require('./routes/auth/vscode')
+var indexRouter = require('./routes/index')
 
 var app = express()
 
@@ -22,8 +23,9 @@ app.use(express.urlencoded({ extended: false }))
 app.use(cookieParser())
 app.use(express.static(path.join(__dirname, 'public')))
 
-app.use('/discord/OAuth', discordOAuthRouter)
-app.use('/auth', authRouter)
+app.use('/auth/discord', discordAuthRouter)
+app.use('/auth/vscode', vscodeAuthRouter)
+app.use('/', indexRouter)
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
