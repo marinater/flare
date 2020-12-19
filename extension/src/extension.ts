@@ -6,12 +6,13 @@ import * as querystring from 'querystring';
 import { v4 as uuidv4 } from 'uuid';
 import * as vscode from 'vscode';
 
-const BASE_URL = 'http://localhost:3000';
+// const BASE_URL = 'http://localhost:3000';
+const BASE_URL = 'https://discord-flare.herokuapp.com';
 
 type Account = {
     signedIn: true
     email: string
-    token: string
+    sessionID: string
     expiration: Date
 } | {
     signedIn: false
@@ -20,13 +21,14 @@ type Account = {
 let vscodeState = uuidv4();
 
 const validateQueryParams = (data: any) => {
+    vscode.window.showInformationMessage(data);
     let account: Account = { signedIn: false };
 
-    if (!data.email || !data.sessionID || !data.vscodeState || !data.expiration) {
+    if (!data.email || !data.sessionID || !data.vscode_state || !data.expiration) {
         return account;
     }
 
-    if (vscodeState !== data.vscodeState) {
+    if (vscodeState !== data.vscode_state) {
         return account;
     }
 
@@ -37,8 +39,8 @@ const validateQueryParams = (data: any) => {
 
     account = {
         signedIn: true,
-        email: String(data.username),
-        token: String(data.token),
+        email: String(data.email),
+        sessionID: String(data.sessionID),
         expiration
     };
 
@@ -54,12 +56,15 @@ class AccountOps {
 
     storeAccount = (account: Account) => {
         const filePath = vscode.Uri.file(path.join(this.flare.context.extensionPath, 'account.json'));
+        this.flare.account = account;
+
         try {
+            console.log('wrote to file ' + JSON.stringify(account, null, 4));
             fs.writeFileSync(filePath.fsPath, JSON.stringify(account, null, 4));
             return true;
         }
         catch {
-            vscode.window.showErrorMessage(`Could not save account info to ${filePath.fsPath}`);
+            vscode.window.showErrorMessage(`Could not persist session to ${filePath.fsPath}`);
             return false;
         }
     };
@@ -78,8 +83,10 @@ class AccountOps {
         }
     };
 
-    uriAuthHandler = (uri: vscode.Uri) => {
+    uriAuthHandler = (callback: () => void) => (uri: vscode.Uri) => {
         const queryParams = querystring.decode(uri.query);
+        vscode.window.showInformationMessage(uri.query);
+
         const account = validateQueryParams(queryParams);
         if (!account.signedIn) {
             vscode.window.showErrorMessage('Authentication callback failed');
@@ -87,6 +94,10 @@ class AccountOps {
 
         vscodeState = uuidv4();
         this.storeAccount(account);
+
+        vscode.window.showInformationMessage('Flare authentication complete!');
+
+        callback();
     };
 
     signIn = () => {
@@ -94,6 +105,7 @@ class AccountOps {
     };
 
     signOut = () => {
+        vscode.window.showInformationMessage('logout complete');
         this.storeAccount({ signedIn: false });
     };
 }
@@ -126,12 +138,16 @@ class Flare {
         panel.webview.html = fs.readFileSync(filePath.fsPath, 'utf8');
     };
 
-    start = () => {
-        this.accountOps.signIn();
+    login = () => {
+        if (!this.account.signedIn) {
+            this.accountOps.signIn();
+        }
     };
 
-    stop = () => {
-        this.accountOps.signOut();
+    logout = () => {
+        if (this.account.signedIn) {
+            this.accountOps.signOut();
+        }
     };
 }
 
@@ -139,17 +155,17 @@ export function activate(context: vscode.ExtensionContext) {
     const flare = new Flare(context);
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('flare.start', flare.start)
+        vscode.commands.registerCommand('flare.login', flare.login)
     );
     context.subscriptions.push(
-        vscode.commands.registerCommand('flare.stop', flare.stop)
+        vscode.commands.registerCommand('flare.logout', flare.logout)
     );
     context.subscriptions.push(
         vscode.commands.registerCommand('flare.open', flare.open)
     );
     context.subscriptions.push(
         vscode.window.registerUriHandler({
-            handleUri: flare.accountOps.uriAuthHandler
+            handleUri: flare.accountOps.uriAuthHandler(flare.open)
         })
     );
 }

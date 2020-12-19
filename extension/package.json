@@ -13,8 +13,8 @@
 	],
 	"activationEvents": [
 		"onCommand:flare.open",
-		"onCommand:flare.start",
-		"onCommand:flare.stop",
+		"onCommand:flare.login",
+		"onCommand:flare.logout",
 		"onUri"
 	],
 	"main": "./dist/extension.js",
@@ -25,12 +25,12 @@
 				"title": "Open Flare"
 			},
 			{
-				"command": "flare.start",
-				"title": "Start Flare"
+				"command": "flare.login",
+				"title": "Login to Flare"
 			},
 			{
-				"command": "flare.stop",
-				"title": "Stop Flare"
+				"command": "flare.logout",
+				"title": "Logout of Flare"
 			}
 		]
 	},

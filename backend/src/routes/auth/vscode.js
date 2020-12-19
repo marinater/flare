@@ -78,7 +78,10 @@ router.get('/github_callback', async function (req, res, next) {
 			throw new Error('Failed to obtain user data')
 		})
 
-	const session = vscodeSessionManager.createSession(user_data.email)
+	const session = vscodeSessionManager.createSession(
+		user_data.email,
+		vscodeState
+	)
 	res.redirect('vscode://marinater.flare/auth?' + querystring.encode(session))
 })
 

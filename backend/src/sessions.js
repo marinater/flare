@@ -28,7 +28,7 @@ class VSCodeSessionManager {
 		return {
 			email,
 			sessionID,
-			vscodeState,
+			vscode_state: vscodeState,
 			expiration: this.sessions[sessionID].expiration.toUTCString(),
 		}
 	}
