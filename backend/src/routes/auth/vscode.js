@@ -82,14 +82,4 @@ router.get('/github_callback', async function (req, res, next) {
 	res.redirect('vscode://marinater.flare/auth?' + querystring.encode(session))
 })
 
-router.post('/', function (req, res, next) {
-	if (!req.body.username || !req.body.password || !req.body) {
-		res.status(400)
-		throw new Error('Form POST did not contain username and password')
-	}
-
-	const session = vscodeSessionManager.createSession()
-	res.send(session)
-})
-
 module.exports = router
