@@ -3,23 +3,30 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as querystring from 'querystring';
+import { v4 as uuidv4 } from 'uuid';
 import * as vscode from 'vscode';
 
-const BASE_URL = 'https://localhost:8000';
+const BASE_URL = 'http://localhost:3000';
 
 type Account = {
     signedIn: true
-    username: string
+    email: string
     token: string
     expiration: Date
 } | {
     signedIn: false
 };
 
-const parseAccount = (data: any) => {
+let vscodeState = uuidv4();
+
+const validateQueryParams = (data: any) => {
     let account: Account = { signedIn: false };
 
-    if (!data.username || !data.token || !data.expiration) {
+    if (!data.email || !data.sessionID || !data.vscodeState || !data.expiration) {
+        return account;
+    }
+
+    if (vscodeState !== data.vscodeState) {
         return account;
     }
 
@@ -30,7 +37,7 @@ const parseAccount = (data: any) => {
 
     account = {
         signedIn: true,
-        username: String(data.username),
+        email: String(data.username),
         token: String(data.token),
         expiration
     };
@@ -39,8 +46,14 @@ const parseAccount = (data: any) => {
 };
 
 class AccountOps {
-    static storeAccount = (context: vscode.ExtensionContext, account: Account) => {
-        const filePath = vscode.Uri.file(path.join(context.extensionPath, 'views', 'index.html'));
+    flare: Flare;
+
+    constructor(flare: Flare) {
+        this.flare = flare;
+    }
+
+    storeAccount = (account: Account) => {
+        const filePath = vscode.Uri.file(path.join(this.flare.context.extensionPath, 'account.json'));
         try {
             fs.writeFileSync(filePath.fsPath, JSON.stringify(account, null, 4));
             return true;
@@ -51,86 +64,92 @@ class AccountOps {
         }
     };
 
-    static restoreAccount = (context: vscode.ExtensionContext): Account => {
-        const filePath = vscode.Uri.file(path.join(context.extensionPath, 'views', 'index.html'));
+    restoreAccount = (): Account => {
+        const filePath = vscode.Uri.file(path.join(this.flare.context.extensionPath, 'account.json'));
 
         try {
             const document = fs.readFileSync(filePath.fsPath, 'utf8');
-            return parseAccount(JSON.parse(document));
+            return validateQueryParams(JSON.parse(document));
         }
         catch {
             const account: Account = { signedIn: false };
-            AccountOps.storeAccount(context, account);
+            this.storeAccount(account);
             return account;
         }
     };
 
-    static uriAuthHandler = (context: vscode.ExtensionContext) => (uri: vscode.Uri) => {
-        vscode.window.showInformationMessage("hello!");
+    uriAuthHandler = (uri: vscode.Uri) => {
+        const queryParams = querystring.decode(uri.query);
+        const account = validateQueryParams(queryParams);
+        if (!account.signedIn) {
+            vscode.window.showErrorMessage('Authentication callback failed');
+        }
 
-        const queryParams = querystring.parse(uri.query);
-        const account = parseAccount(queryParams);
-
-        AccountOps.storeAccount(context, account);
+        vscodeState = uuidv4();
+        this.storeAccount(account);
     };
 
-    static signIn = (context: vscode.ExtensionContext) => {
-        vscode.env.openExternal(vscode.Uri.parse(`${BASE_URL}/auth`));
+    signIn = () => {
+        vscode.env.openExternal(vscode.Uri.parse(`${BASE_URL}/auth/vscode?vscode_state=${vscodeState}`));
     };
 
-    static signOut = (context: vscode.ExtensionContext) => {
-        AccountOps.storeAccount(context, { signedIn: false });
+    signOut = () => {
+        this.storeAccount({ signedIn: false });
     };
 }
 
 class Flare {
     context: vscode.ExtensionContext;
     account: Account;
+    accountOps: AccountOps;
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
-        this.account = AccountOps.restoreAccount(context);
+        this.accountOps = new AccountOps(this);
+        this.account = this.accountOps.restoreAccount();
     }
+
+    open = () => {
+        const panel = vscode.window.createWebviewPanel(
+            'flare', // Identifies the type of the webview. Used internally
+            'Flare', // Title of the panel displayed to the user
+            vscode.ViewColumn.One, // Editor column to show the new webview panel in.
+            {
+                enableScripts: true,
+                localResourceRoots: [
+                    vscode.Uri.file(path.join(this.context.extensionPath, 'views'))
+                ]
+            }
+        );
+
+        const filePath = vscode.Uri.file(path.join(this.context.extensionPath, 'views', 'index.html'));
+        panel.webview.html = fs.readFileSync(filePath.fsPath, 'utf8');
+    };
+
+    start = () => {
+        this.accountOps.signIn();
+    };
+
+    stop = () => {
+        this.accountOps.signOut();
+    };
 }
 
-const openFlare = (context: vscode.ExtensionContext) => () => {
-    const panel = vscode.window.createWebviewPanel(
-        'flare', // Identifies the type of the webview. Used internally
-        'Flare', // Title of the panel displayed to the user
-        vscode.ViewColumn.One, // Editor column to show the new webview panel in.
-        {
-            enableScripts: true,
-            localResourceRoots: [
-                vscode.Uri.file(path.join(context.extensionPath, 'views'))
-            ]
-        }
-    );
-
-    const filePath = vscode.Uri.file(path.join(context.extensionPath, 'views', 'index.html'));
-    panel.webview.html = fs.readFileSync(filePath.fsPath, 'utf8');
-};
-
-const startFlare = (context: vscode.ExtensionContext) => () => {
-
-};
-
-const stopFlare = (context: vscode.ExtensionContext) => () => {
-
-};
-
 export function activate(context: vscode.ExtensionContext) {
+    const flare = new Flare(context);
+
     context.subscriptions.push(
-        vscode.commands.registerCommand('flare.start', startFlare(context))
+        vscode.commands.registerCommand('flare.start', flare.start)
     );
     context.subscriptions.push(
-        vscode.commands.registerCommand('flare.stop', stopFlare(context))
+        vscode.commands.registerCommand('flare.stop', flare.stop)
     );
     context.subscriptions.push(
-        vscode.commands.registerCommand('flare.open', openFlare(context))
+        vscode.commands.registerCommand('flare.open', flare.open)
     );
     context.subscriptions.push(
         vscode.window.registerUriHandler({
-            handleUri: AccountOps.uriAuthHandler(context)
+            handleUri: flare.accountOps.uriAuthHandler
         })
     );
 }
