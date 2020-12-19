@@ -44,6 +44,9 @@ app.use(function (err, req, res, next) {
 })
 
 const flareBot = new FlareBot()
-flareBot.start()
+
+if (process.env.ENABLE_DISCORD_BOT === 'true') {
+	flareBot.start()
+}
 
 module.exports = app

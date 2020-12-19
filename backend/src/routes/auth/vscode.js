@@ -4,7 +4,7 @@ var router = require('express-promise-router')()
 var querystring = require('querystring')
 var fetch = require('node-fetch')
 
-var { vscodeSessionManager, oauthStateManager } = require('../../sessions')
+var { vscodeSessionManager, vscodeStateManager } = require('../../sessions')
 
 router.get('/', function (req, res, next) {
 	if (!req.query.vscode_state) {
@@ -17,7 +17,8 @@ router.get('/', function (req, res, next) {
 		querystring.encode({
 			client_id: process.env.GITHUB_CLIENT_ID,
 			scope: '',
-			state: oauthStateManager.createState(req.query.vscode_state),
+			redirect_uri: `${process.env.BASE_URL}/auth/vscode/github_callback`,
+			state: vscodeStateManager.createState(req.query.vscode_state),
 		})
 
 	res.status(302).redirect(redirect_url)
@@ -31,7 +32,7 @@ router.get('/github_callback', async function (req, res, next) {
 		)
 	}
 
-	const vscodeState = oauthStateManager.verifyState(req.query.state)
+	const vscodeState = vscodeStateManager.verifyState(req.query.state)
 	if (vscodeState === null) {
 		throw new Error(
 			'The provided state does not match any recently generated'
@@ -59,8 +60,6 @@ router.get('/github_callback', async function (req, res, next) {
 			console.log(err)
 			throw new Error('Could not retrieve access token from GitHub')
 		})
-
-	console.log(access_token_data)
 
 	const user_data = await fetch('https://api.github.com/user', {
 		headers: {

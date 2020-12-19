@@ -82,5 +82,6 @@ class OAuthStateManager {
 
 module.exports = {
 	vscodeSessionManager: new VSCodeSessionManager(),
-	oauthStateManager: new OAuthStateManager(),
+	vscodeStateManager: new OAuthStateManager(),
+	discordStateManager: new OAuthStateManager(),
 }
