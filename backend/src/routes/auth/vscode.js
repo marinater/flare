@@ -78,7 +78,7 @@ router.get('/github_callback', async function (req, res, next) {
 		})
 
 	const session = vscodeSessionManager.createSession(
-		user_data.email,
+		user_data.login,
 		vscodeState
 	)
 	res.redirect('vscode://marinater.flare/auth?' + querystring.encode(session))

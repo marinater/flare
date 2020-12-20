@@ -4,6 +4,8 @@ services:
         build: .
         ports:
             - '3000:3000'
+        environment:
+            - DATABASE_URL=${DATABASE_URL}
         depends_on:
             - db
             - redis
@@ -14,13 +16,8 @@ services:
         env_file: ./envs/postgres.env
         ports:
             - '5432:5432'
-        volumes:
-            - ./postgres-init:/docker-entrypoint-initdb.d
-            - pgdata:/var/lib/postgresql/data
     redis:
         image: redis:alpine
         env_file: ./envs/redis.env
         ports:
             - '6379:6379'
-volumes:
-    pgdata:

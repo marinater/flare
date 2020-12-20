@@ -86,8 +86,8 @@ router.get('/github_callback', async function (req, res, next) {
 			throw new Error('Failed to obtain user data')
 		})
 
-	if (discordState && user_data.email)
-		usersManager.addUser(discordState, user_data.email)
+	if (discordState && user_data.login)
+		usersManager.addUser(discordState, user_data.login)
 
 	res.render('index', { title: 'Succesfully registered' })
 })

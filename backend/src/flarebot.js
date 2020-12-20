@@ -26,12 +26,15 @@ class FlareBot {
 				const responseURL = createRegistrationLink(msg.author.id)
 				msg.author.send(`Click this link to register: ${responseURL}`)
 			} else if (command === 'request') {
-				const email = await usersManager.getUserEmail(msg.author.id)
-
-				msg.reply(email)
+				const username = await usersManager.getGithubUsername(
+					msg.author.id
+				)
+				if (username !== null) msg.reply(username)
 			} else if (command === 'allusers') {
 				const allUsers = await usersManager.getAllUsers()
-				console.log(allUsers)
+				if (allUsers !== null) console.log(allUsers)
+			} else {
+				// socketManager.send(msg)
 			}
 
 			// ex: usersManager.addtoDB()
