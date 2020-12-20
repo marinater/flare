@@ -8,15 +8,16 @@ var fetch = require('node-fetch')
 var { discordStateManager } = require('../../sessions')
 var { usersManager } = require('../../data-store')
 
-// const createRegistrationLink = (discord_id) => {
-// 	const responseURL = `${process.env.BASE_URL}/auth/discord?discord_id=${msg.author.id}`
-// }
+const createRegistrationLink = (discord_id) => {
+	const discordState = discordStateManager.createState(discord_id)
+	return `${process.env.BASE_URL}/auth/discord?discord_state=${discordState}`
+}
 
 router.get('/', function (req, res, next) {
-	if (!req.query.discord_id) {
+	if (!req.query.discord_state) {
 		res.status(400)
 		throw new Error(
-			'Did not receive a discord id to begin authentication for'
+			'Did not receive a discord state to begin authentication for'
 		)
 	}
 
@@ -26,7 +27,7 @@ router.get('/', function (req, res, next) {
 			client_id: process.env.GITHUB_CLIENT_ID,
 			scope: '',
 			redirect_uri: `${process.env.BASE_URL}/auth/discord/github_callback`,
-			state: discordStateManager.createState(req.query.discord_id),
+			state: req.query.discord_state,
 		})
 
 	res.status(302).redirect(redirect_url)
@@ -91,4 +92,4 @@ router.get('/github_callback', async function (req, res, next) {
 	res.render('index', { title: 'Succesfully registered' })
 })
 
-module.exports = router
+module.exports = { router, createRegistrationLink }

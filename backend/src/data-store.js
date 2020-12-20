@@ -5,16 +5,13 @@ class UsersManager {
 		this.pool = new Pool()
 	}
 
-	addUser = async (discord_id, github_username) => {
-		const insertOrUpdateQuery = `update users set discord_id = $1, github_username = $2 where discord_id = $1;
-                                        insert into users(discord_id, github_username)
-                                        SELECT $1, $2
-                                        WHERE NOT EXISTS (SELECT 1 FROM users WHERE discord_id = $1);`
-
+	addUser = async (discord_id, email) => {
+		const insertOrUpdateQuery =
+			'insert into users (discord_id, email) values ($1, $2) on conflict (discord_id) do update set discord_id = $2'
 		try {
 			const res = await this.pool.query(insertOrUpdateQuery, [
 				discord_id,
-				github_username,
+				email,
 			])
 			return true
 		} catch (err) {
@@ -22,11 +19,21 @@ class UsersManager {
 		}
 	}
 
-	getGithubUsername = async (discord_id) => {
-		const query = 'select github_username from users where discord_id = $1'
+	getUserEmail = async (discord_id) => {
+		const query = 'select email from users where discord_id = $1'
 		try {
 			const res = await this.pool.query(query, [discord_id])
 			return res.rows[0].github_username
+		} catch (err) {
+			return null
+		}
+	}
+
+	getAllUsers = async () => {
+		const query = 'select * from users'
+		try {
+			const res = await this.pool.query(query)
+			return res.rows
 		} catch (err) {
 			return null
 		}

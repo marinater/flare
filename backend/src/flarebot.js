@@ -1,5 +1,6 @@
 const Discord = require('discord.js')
 var { usersManager } = require('./data-store')
+var { createRegistrationLink } = require('./routes/auth/discord')
 
 class FlareBot {
 	constructor() {
@@ -22,14 +23,15 @@ class FlareBot {
 
 			if (command === 'register') {
 				// Reply with `${process.env.BASE_URL}/auth/discord?discord_id=${msg.author.id}#${msg.author.discriminator}`
-				const responseURL = `${process.env.BASE_URL}/auth/discord?discord_id=${msg.author.id}`
+				const responseURL = createRegistrationLink(msg.author.id)
 				msg.author.send(`Click this link to register: ${responseURL}`)
 			} else if (command === 'request') {
-				const githubUsername = await usersManager.getGithubUsername(
-					msg.author.id
-				)
+				const email = await usersManager.getUserEmail(msg.author.id)
 
-				msg.reply(githubUsername)
+				msg.reply(email)
+			} else if (command === 'allusers') {
+				const allUsers = await usersManager.getAllUsers()
+				console.log(allUsers)
 			}
 
 			// ex: usersManager.addtoDB()

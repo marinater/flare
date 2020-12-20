@@ -84,4 +84,4 @@ router.get('/github_callback', async function (req, res, next) {
 	res.redirect('vscode://marinater.flare/auth?' + querystring.encode(session))
 })
 
-module.exports = router
+module.exports = { router }

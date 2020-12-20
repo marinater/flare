@@ -6,9 +6,9 @@ var path = require('path')
 var cookieParser = require('cookie-parser')
 var logger = require('morgan')
 
-var discordAuthRouter = require('./routes/auth/discord')
-var vscodeAuthRouter = require('./routes/auth/vscode')
-var indexRouter = require('./routes/index')
+var { router: discordAuthRouter } = require('./routes/auth/discord')
+var { router: vscodeAuthRouter } = require('./routes/auth/vscode')
+var { router: indexRouter } = require('./routes/index')
 
 var app = express()
 
