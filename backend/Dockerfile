@@ -1,8 +1,7 @@
 FROM node:15
-WORKDIR /usr/src/app
+WORKDIR /backend
 COPY package*.json ./
 RUN npm install
 COPY . .
 EXPOSE 3000
-CMD ["npm", "start"]
-
+CMD [ "./wait-for-it.sh", "db:5432", "--", "npm", "start"]

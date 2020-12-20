@@ -6,14 +6,11 @@ var querystring = require('querystring')
 var fetch = require('node-fetch')
 
 var { discordStateManager } = require('../../sessions')
+var { usersManager } = require('../../data-store')
 
-function fullUrl(req) {
-	return url.format({
-		protocol: req.protocol,
-		host: req.get('host'),
-		pathname: req.originalUrl,
-	})
-}
+// const createRegistrationLink = (discord_id) => {
+// 	const responseURL = `${process.env.BASE_URL}/auth/discord?discord_id=${msg.author.id}`
+// }
 
 router.get('/', function (req, res, next) {
 	if (!req.query.discord_id) {
@@ -82,11 +79,14 @@ router.get('/github_callback', async function (req, res, next) {
 		.then((data) => {
 			if (data.message === 'Bad credentials')
 				throw 'Bad Github credentials'
-			else return data
+			return data
 		})
 		.catch(() => {
 			throw new Error('Failed to obtain user data')
 		})
+
+	if (discordState && user_data.email)
+		usersManager.addUser(discordState, user_data.email)
 
 	res.render('index', { title: 'Succesfully registered' })
 })

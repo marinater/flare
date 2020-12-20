@@ -1,4 +1,5 @@
 const Discord = require('discord.js')
+var { usersManager } = require('./data-store')
 
 class FlareBot {
 	constructor() {
@@ -10,7 +11,7 @@ class FlareBot {
 			console.log(`Logged in as ${this.client.user.tag}!`)
 		})
 
-		this.client.on('message', (msg) => {
+		this.client.on('message', async (msg) => {
 			const prefix = '!'
 
 			if (msg.author.bot) return
@@ -22,15 +23,16 @@ class FlareBot {
 			if (command === 'register') {
 				// Reply with `${process.env.BASE_URL}/auth/discord?discord_id=${msg.author.id}#${msg.author.discriminator}`
 				const responseURL = `${process.env.BASE_URL}/auth/discord?discord_id=${msg.author.id}`
-
 				msg.author.send(`Click this link to register: ${responseURL}`)
+			} else if (command === 'request') {
+				const githubUsername = await usersManager.getGithubUsername(
+					msg.author.id
+				)
+
+				msg.reply(githubUsername)
 			}
 
-			if (msg.content === 'ping') {
-				this.client.users
-					.fetch(msg.author.id)
-					.then((x) => console.log(x))
-			}
+			// ex: usersManager.addtoDB()
 		})
 
 		this.client.login(process.env.DISCORD_FLAREBOT_TOKEN)
