@@ -1,87 +1,81 @@
 var { v4: uuidV4 } = require('uuid')
+const util = require('util')
 
-const addHours = (hours) => {
+const redis = require('redis')
+const client = redis.createClient({
+	host: 'redis',
+})
+
+const addSeconds = (seconds) => {
 	const currentDate = new Date()
-	currentDate.setTime(currentDate.getTime() + hours * 60 * 60 * 1000)
+	currentDate.setTime(currentDate.getTime() + seconds * 1000)
 	return currentDate
 }
 
-class VSCodeSessionManager {
-	constructor() {
-		this.sessions = {}
+class SessionManager {
+	constructor(prefix, timeoutSeconds) {
+		this.prefix = prefix
+		this.timeoutSeconds = timeoutSeconds
 	}
 
-	createSession = (email, vscodeState) => {
+	create = (verification_code) => {
 		const sessionID = uuidV4()
 
-		const timeout = setTimeout(
-			() => this.endSession(sessionID),
-			process.env.SESSION_STATE_TIMEOUT_HOURS * 60 * 60 * 1000
+		client.set(
+			`${this.prefix}:${sessionID}`,
+			verification_code,
+			'EX',
+			this.timeoutSeconds
 		)
 
-		this.sessions[sessionID] = {
-			email,
-			timeout,
-			expiration: addHours(process.env.SESSION_STATE_TIMEOUT_HOURS),
-		}
-
-		return {
-			email,
-			sessionID,
-			vscode_state: vscodeState,
-			expiration: this.sessions[sessionID].expiration.toUTCString(),
-		}
+		return sessionID
 	}
 
-	endSession = (uuid) => {
-		if (uuid in this.sessions) {
-			clearTimeout(this.sessions[uuid].timeout)
+	verify = (sessionID) => {
+		const promisifiedGet = util.promisify(client.get).bind(client)
 
-			delete this.sessions[uuid]
-			return true
-		}
-
-		return false
-	}
-}
-
-class OAuthStateManager {
-	constructor() {
-		this.states = {}
+		return promisifiedGet(`${this.prefix}:${sessionID}`).catch(() => null)
 	}
 
-	createState = (vscodeState) => {
-		const githubState = uuidV4()
+	delete = (sessionID) => {
+		const promisifiedDel = util.promisify(client.del).bind(client)
 
-		const timeout = setTimeout(
-			() => this.verifyState(githubState),
-			process.env.GITHUB_STATE_TIMEOUT_MINS * 60 * 1000
-		)
-
-		this.states[githubState] = {
-			vscodeState,
-			timeout,
-		}
-
-		return githubState
+		return promisifiedDel(`${this.prefix}:${sessionID}`)
+			.then((reply) => reply > 0)
+			.catch(() => false)
 	}
 
-	verifyState = (githubState) => {
-		if (githubState in this.states) {
-			clearTimeout(this.states[githubState].timeout)
+	pop = (sessionID) => {
+		const multi = client
+			.multi()
+			.get(`${this.prefix}:${sessionID}`)
+			.del(`${this.prefix}:${sessionID}`)
 
-			const { vscodeState } = this.states[githubState]
-			delete this.states[githubState]
+		const promisifiedPop = util.promisify(multi.exec).bind(multi)
 
-			return vscodeState
-		}
-
-		return null
+		return promisifiedPop()
+			.then((replies) => {
+				return replies[0]
+			})
+			.catch((err) => {
+				console.error(err)
+				return null
+			})
 	}
 }
 
 module.exports = {
-	vscodeSessionManager: new VSCodeSessionManager(),
-	vscodeStateManager: new OAuthStateManager(),
-	discordStateManager: new OAuthStateManager(),
+	vscodeSessionManager: new SessionManager(
+		'vscode_session_manager',
+		process.env.SESSION_STATE_TIMEOUT_HOURS * 60 * 60
+	),
+	vscodeStateManager: new SessionManager(
+		'vscode_state_manager',
+		process.env.OAUTH_STATE_TIMEOUT_SECONDS
+	),
+	discordStateManager: new SessionManager(
+		'discord_state_manager',
+		process.env.OAUTH_STATE_TIMEOUT_SECONDS
+	),
+	addSeconds,
 }

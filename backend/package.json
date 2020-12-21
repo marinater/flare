@@ -4,9 +4,10 @@
 	"private": true,
 	"scripts": {
 		"ngrok": "./ngrok http 3000",
-		"develop": "nodemon ./bin/www",
+		"develop": "nodemon ./src/app.js",
+		"containerized": "docker compose up",
 		"push-prod": "heroku container:push web -a discord-flare && heroku container:release web -a discord-flare",
-		"start": "node ./bin/www"
+		"start": "node ./src/app.js"
 	},
 	"dependencies": {
 		"@octokit/request": "^5.4.12",
@@ -24,6 +25,7 @@
 		"pg": "^8.5.1",
 		"pug": "2.0.0-beta11",
 		"redis": "^3.0.2",
+		"socket.io": "^3.0.4",
 		"uuid": "^8.3.2"
 	}
 }

@@ -1,10 +1,12 @@
 const Discord = require('discord.js')
 var { usersManager } = require('./data-store')
 var { createRegistrationLink } = require('./routes/auth/discord')
+var { socketManager } = require('./sockets')
 
 class FlareBot {
 	constructor() {
 		this.client = new Discord.Client()
+		this.client.login(process.env.DISCORD_FLAREBOT_TOKEN)
 	}
 
 	start = () => {
@@ -24,23 +26,22 @@ class FlareBot {
 			if (command === 'register') {
 				// Reply with `${process.env.BASE_URL}/auth/discord?discord_id=${msg.author.id}#${msg.author.discriminator}`
 				const responseURL = createRegistrationLink(msg.author.id)
+
 				msg.author.send(`Click this link to register: ${responseURL}`)
 			} else if (command === 'request') {
 				const username = await usersManager.getGithubUsername(
 					msg.author.id
 				)
 				if (username !== null) msg.reply(username)
+				else msg.reply("that user don't exist")
 			} else if (command === 'allusers') {
 				const allUsers = await usersManager.getAllUsers()
 				if (allUsers !== null) console.log(allUsers)
 			} else {
-				// socketManager.send(msg)
+				// socketClient.sendMessage(msg, msg.Guild.id)
 			}
-
-			// ex: usersManager.addtoDB()
+			// : usersManager.addtoDB()
 		})
-
-		this.client.login(process.env.DISCORD_FLAREBOT_TOKEN)
 	}
 }
 

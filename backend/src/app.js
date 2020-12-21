@@ -1,5 +1,6 @@
 require('dotenv').config({ path: '/backend/envs/backend.env' })
 
+var http = require('http')
 var createError = require('http-errors')
 var express = require('express')
 var path = require('path')
@@ -9,10 +10,13 @@ var logger = require('morgan')
 var { router: discordAuthRouter } = require('./routes/auth/discord')
 var { router: vscodeAuthRouter } = require('./routes/auth/vscode')
 var { router: indexRouter } = require('./routes/index')
+var serverUtils = require('./server-utils')
+var FlareBot = require('./flarebot')
 
 var app = express()
 
-var FlareBot = require('./flarebot')
+var port = serverUtils.normalizePort(process.env.PORT || '3000')
+app.set('port', port)
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'))
@@ -44,10 +48,14 @@ app.use(function (err, req, res, next) {
 	res.render('error')
 })
 
-const flareBot = new FlareBot()
+var server = http.createServer(app)
+const io = require('socket.io')(server)
 
+const flareBot = new FlareBot(io)
 if (process.env.ENABLE_DISCORD_BOT === 'true') {
 	flareBot.start()
 }
 
-module.exports = app
+server.listen(port)
+server.on('error', serverUtils.onError(port))
+server.on('listening', serverUtils.onListening(server))

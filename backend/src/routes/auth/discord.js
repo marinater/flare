@@ -1,7 +1,5 @@
-var express = require('express')
 var router = require('express-promise-router')()
 
-var url = require('url')
 var querystring = require('querystring')
 var fetch = require('node-fetch')
 
@@ -9,7 +7,7 @@ var { discordStateManager } = require('../../sessions')
 var { usersManager } = require('../../data-store')
 
 const createRegistrationLink = (discord_id) => {
-	const discordState = discordStateManager.createState(discord_id)
+	const discordState = discordStateManager.create(discord_id)
 	return `${process.env.BASE_URL}/auth/discord?discord_state=${discordState}`
 }
 
@@ -41,7 +39,7 @@ router.get('/github_callback', async function (req, res, next) {
 		)
 	}
 
-	const discordState = discordStateManager.verifyState(req.query.state)
+	const discordState = await discordStateManager.pop(req.query.state)
 	if (discordState === null) {
 		throw new Error(
 			'The provided state does not match any recently generated'

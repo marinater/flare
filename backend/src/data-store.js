@@ -1,47 +1,66 @@
-const { Pool, Client } = require('pg')
+const { Pool } = require('pg')
 
 class UsersManager {
 	constructor() {
 		this.pool = new Pool({
 			connectionString: process.env.DATABASE_URL,
 		})
+
+		this.pool.query('select * from users').then((res) => {
+			console.log(res)
+		})
 	}
 
-	addUser = async (discord_id, email) => {
+	addUser = (discord_id, github_username) => {
 		console.log(`add user github_username requested by ${discord_id}`)
-		const insertOrUpdateQuery =
+		const statement =
 			'insert into users (discord_id, github_username) values ($1, $2) on conflict (discord_id) do update set discord_id = $1, github_username = $2'
-		try {
-			const res = await this.pool.query(insertOrUpdateQuery, [
-				discord_id,
-				email,
-			])
-			return true
-		} catch (err) {
-			return false
-		}
+
+		return this.pool
+			.query(statement, [discord_id, github_username])
+			.then(() => true)
+			.catch(() => false)
+	}
+
+	storeGuildId = (guild_id) => {
+		const statement =
+			'insert into guilds (guild_id) values ($1) on conflict (guild_id) do nothing'
+
+		return this.pool
+			.query(statement, [guild_id])
+			.then(() => true)
+			.catch(() => false)
+	}
+
+	addGuildUserAssociation = (guild_id, discord_id) => {
+		const statement =
+			'insert into guilds_users (guild_id, discord_id) values ($1, $2) on conflict (guild_id, discord_id) do nothing'
+
+		return this.pool
+			.query(statement, [guild_id, discord_id])
+			.then(() => true)
+			.catch(() => false)
 	}
 
 	getGithubUsername = async (discord_id) => {
 		console.log(`get user github_username requested by ${discord_id}`)
-		const query = 'select github_username from users where discord_id = $1'
-		try {
-			const res = await this.pool.query(query, [discord_id])
-			return res.rows[0].github_username
-		} catch (err) {
-			return null
-		}
+		const statement =
+			'select github_username from users where discord_id = $1'
+
+		return this.pool
+			.query(statement, [discord_id])
+			.then((res) => res.rows[0].github_username)
+			.catch(() => null)
 	}
 
 	getAllUsers = async () => {
 		console.log(`get all users requested`)
-		const query = 'select * from users'
-		try {
-			const res = await this.pool.query(query)
-			return res.rows
-		} catch (err) {
-			return null
-		}
+		const statement = 'select * from users'
+
+		return this.pool
+			.query(statement)
+			.then((res) => res.rows)
+			.catch(() => null)
 	}
 
 	stop = () => {

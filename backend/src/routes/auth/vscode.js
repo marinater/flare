@@ -4,7 +4,11 @@ var router = require('express-promise-router')()
 var querystring = require('querystring')
 var fetch = require('node-fetch')
 
-var { vscodeSessionManager, vscodeStateManager } = require('../../sessions')
+var {
+	vscodeSessionManager,
+	vscodeStateManager,
+	addSeconds,
+} = require('../../sessions')
 
 router.get('/', function (req, res, next) {
 	if (!req.query.vscode_state) {
@@ -18,7 +22,7 @@ router.get('/', function (req, res, next) {
 			client_id: process.env.GITHUB_CLIENT_ID,
 			scope: '',
 			redirect_uri: `${process.env.BASE_URL}/auth/vscode/github_callback`,
-			state: vscodeStateManager.createState(req.query.vscode_state),
+			state: vscodeStateManager.create(req.query.vscode_state),
 		})
 
 	res.status(302).redirect(redirect_url)
@@ -32,7 +36,7 @@ router.get('/github_callback', async function (req, res, next) {
 		)
 	}
 
-	const vscodeState = vscodeStateManager.verifyState(req.query.state)
+	const vscodeState = await vscodeStateManager.pop(req.query.state)
 	if (vscodeState === null) {
 		throw new Error(
 			'The provided state does not match any recently generated'
@@ -77,10 +81,29 @@ router.get('/github_callback', async function (req, res, next) {
 			throw new Error('Failed to obtain user data')
 		})
 
-	const session = vscodeSessionManager.createSession(
-		user_data.login,
-		vscodeState
+	const session = {
+		email: user_data.login,
+		sessionID: vscodeSessionManager.create(user_data.login),
+		vscode_state: vscodeState,
+		expiration: addSeconds(
+			process.env.SESSION_STATE_TIMEOUT_HOURS * 60 * 60
+		).toUTCString(),
+	}
+
+	const timeout = setInterval(
+		async () =>
+			vscodeSessionManager
+				.verify(session.sessionID)
+				.then((x) =>
+					console.log(
+						`Session ${session.sessionID}: signed ${
+							x ? 'in' : 'out'
+						}`
+					)
+				),
+		1000
 	)
+
 	res.redirect('vscode://marinater.flare/auth?' + querystring.encode(session))
 })
 
