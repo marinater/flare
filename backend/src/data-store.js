@@ -5,10 +5,6 @@ class UsersManager {
 		this.pool = new Pool({
 			connectionString: process.env.DATABASE_URL,
 		})
-
-		this.pool.query('select * from users').then((res) => {
-			console.log(res)
-		})
 	}
 
 	addUser = (discord_id, github_username) => {

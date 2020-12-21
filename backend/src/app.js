@@ -49,7 +49,11 @@ app.use(function (err, req, res, next) {
 })
 
 var server = http.createServer(app)
-const io = require('socket.io')(server)
+const io = require('socket.io')(server, {
+	cors: {
+		origin: '*',
+	},
+})
 
 const flareBot = new FlareBot(io)
 if (process.env.ENABLE_DISCORD_BOT === 'true') {

@@ -18,8 +18,11 @@
     <script src="http://localhost:3000/socket.io/socket.io.js"></script>
     <script>
         const contentDiv = document.getElementById('content')
-        const socket = io('localhost:3000')
-        socket.emit('cowabunga', 'hello, world chan')
+        const socket = io('localhost:3000', { auth: { "aya": "ya" } })
+
+        setInterval(() => {
+            socket.emit('flare-message', 'hello, world chan')
+        }, 1000)
     </script>
 </body>
 

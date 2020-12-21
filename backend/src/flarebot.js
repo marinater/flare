@@ -1,12 +1,13 @@
 const Discord = require('discord.js')
 var { usersManager } = require('./data-store')
 var { createRegistrationLink } = require('./routes/auth/discord')
-var { socketManager } = require('./sockets')
+var { SocketManager } = require('./sockets')
 
 class FlareBot {
-	constructor() {
+	constructor(io) {
 		this.client = new Discord.Client()
 		this.client.login(process.env.DISCORD_FLAREBOT_TOKEN)
+		this.socketManager = new SocketManager(io, this.handleMessage)
 	}
 
 	start = () => {
@@ -42,6 +43,10 @@ class FlareBot {
 			}
 			// : usersManager.addtoDB()
 		})
+	}
+
+	handleMessage = (msg) => {
+		console.log(msg)
 	}
 }
 
