@@ -6,7 +6,8 @@
 		"ngrok": "./ngrok http 3000",
 		"develop": "nodemon ./src/app.js",
 		"containerized": "docker compose up",
-		"push-prod": "heroku container:push web -a discord-flare && heroku container:release web -a discord-flare",
+        "push-prod": "heroku container:push web -a discord-flare && heroku container:release web -a discord-flare",
+        "push-pg": "heroku pg:reset -a discord-flare --confirm discord-flare && heroku pg:push flare_db_local postgresql-clear-69228 -a discord-flare",
 		"start": "node ./src/app.js"
 	},
 	"dependencies": {

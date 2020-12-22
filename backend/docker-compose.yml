@@ -4,8 +4,6 @@ services:
         build: .
         ports:
             - '3000:3000'
-        environment:
-            - CONTAINER_DATABASE_URL=${DATABASE_URL}
         depends_on:
             - db
             - redis

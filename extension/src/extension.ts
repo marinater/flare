@@ -6,8 +6,8 @@ import * as querystring from 'querystring';
 import { v4 as uuidv4 } from 'uuid';
 import * as vscode from 'vscode';
 
-const BASE_URL = 'http://localhost:3000';
-// const BASE_URL = 'https://discord-flare.herokuapp.com';
+// const BASE_URL = 'http://localhost:3000';
+const BASE_URL = 'https://discord-flare.herokuapp.com';
 
 type Account = {
     signedIn: true
@@ -122,6 +122,11 @@ class Flare {
     }
 
     open = () => {
+        if (!this.account.signedIn) {
+            vscode.window.showErrorMessage('Please log in to first');
+            return;
+        }
+
         const panel = vscode.window.createWebviewPanel(
             'flare', // Identifies the type of the webview. Used internally
             'Flare', // Title of the panel displayed to the user
@@ -135,7 +140,12 @@ class Flare {
         );
 
         const filePath = vscode.Uri.file(path.join(this.context.extensionPath, 'views', 'index.html'));
-        panel.webview.html = fs.readFileSync(filePath.fsPath, 'utf8');
+
+        let webViewHTML = fs.readFileSync(filePath.fsPath, 'utf8');
+        webViewHTML = webViewHTML.replace(/{{sessionID}}/g, this.account.sessionID);
+        webViewHTML = webViewHTML.replace(/{{base_url}}/g, BASE_URL);
+
+        panel.webview.html = webViewHTML;
     };
 
     login = () => {

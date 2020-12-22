@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title> Flare </title>
 
     <style>
@@ -15,11 +16,25 @@
     <div id="content">
 
     </div>
-    <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+    <script src='{{base_url}}/socket.io/socket.io.js'></script>
     <script>
         const contentDiv = document.getElementById('content')
-        const socket = io('localhost:3000')
-        socket.emit('cowabunga', 'hello, world chan')
+        const sessionID = '{{sessionID}}'
+        const socket = io('{{base_url}}', { auth: { sessionID } })
+
+        const createMessageNode = (message) => {
+            const container = document.createElement('div')
+            container.innerText = JSON.stringify(message, '&nbsp', 4)
+            return container
+        }
+
+        socket.on('flare-message', message => {
+            contentDiv.appendChild(createMessageNode(message))
+        })
+
+        socket.on('connect_error', err => {
+            console.error(`connect_error: ${err.message}`)
+        })
     </script>
 </body>
 

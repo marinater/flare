@@ -3,7 +3,7 @@ const util = require('util')
 
 const redis = require('redis')
 const client = redis.createClient({
-	host: 'redis',
+	url: process.env.REDIS_URL,
 })
 
 const addSeconds = seconds => {
