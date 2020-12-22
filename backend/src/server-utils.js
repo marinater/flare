@@ -16,7 +16,7 @@ function normalizePort(val) {
 	return false
 }
 
-const onError = (port) => (error) => {
+const onError = port => error => {
 	if (error.syscall !== 'listen') {
 		throw error
 	}
@@ -38,7 +38,7 @@ const onError = (port) => (error) => {
 	}
 }
 
-const onListening = (server) => () => {
+const onListening = server => () => {
 	var addr = server.address()
 	var bind = typeof addr === 'string' ? 'pipe ' + addr : 'port ' + addr.port
 	debug('Listening on ' + bind)

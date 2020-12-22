@@ -4,11 +4,7 @@ var router = require('express-promise-router')()
 var querystring = require('querystring')
 var fetch = require('node-fetch')
 
-var {
-	vscodeSessionManager,
-	vscodeStateManager,
-	addSeconds,
-} = require('../../sessions')
+var { vscodeSessionManager, vscodeStateManager, addSeconds } = require('../../sessions')
 
 router.get('/', function (req, res, next) {
 	if (!req.query.vscode_state) {
@@ -31,36 +27,29 @@ router.get('/', function (req, res, next) {
 router.get('/github_callback', async function (req, res, next) {
 	if (!req.query.code || !req.query.state) {
 		res.status(400)
-		throw new Error(
-			'OAuth callback did not receive all neccessary url parameters'
-		)
+		throw new Error('OAuth callback did not receive all neccessary url parameters')
 	}
 
 	const vscodeState = await vscodeStateManager.pop(req.query.state)
 	if (vscodeState === null) {
-		throw new Error(
-			'The provided state does not match any recently generated'
-		)
+		throw new Error('The provided state does not match any recently generated')
 	}
 
-	const access_token_data = await fetch(
-		'https://github.com/login/oauth/access_token',
-		{
-			method: 'post',
-			body: JSON.stringify({
-				client_id: process.env.GITHUB_CLIENT_ID,
-				client_secret: process.env.GITHUB_CLIENT_SECRET,
-				code: req.query.code,
-				state: req.query.state,
-			}),
-			headers: {
-				Accept: 'application/json',
-				'Content-Type': 'application/json',
-			},
-		}
-	)
-		.then((res) => res.json())
-		.catch((err) => {
+	const access_token_data = await fetch('https://github.com/login/oauth/access_token', {
+		method: 'post',
+		body: JSON.stringify({
+			client_id: process.env.GITHUB_CLIENT_ID,
+			client_secret: process.env.GITHUB_CLIENT_SECRET,
+			code: req.query.code,
+			state: req.query.state,
+		}),
+		headers: {
+			Accept: 'application/json',
+			'Content-Type': 'application/json',
+		},
+	})
+		.then(res => res.json())
+		.catch(err => {
 			console.log(err)
 			throw new Error('Could not retrieve access token from GitHub')
 		})
@@ -71,10 +60,9 @@ router.get('/github_callback', async function (req, res, next) {
 			Authorization: `token ${access_token_data.access_token}`,
 		},
 	})
-		.then((res) => res.json())
-		.then((data) => {
-			if (data.message === 'Bad credentials')
-				throw 'Bad Github credentials'
+		.then(res => res.json())
+		.then(data => {
+			if (data.message === 'Bad credentials') throw 'Bad Github credentials'
 			else return data
 		})
 		.catch(() => {
@@ -85,24 +73,8 @@ router.get('/github_callback', async function (req, res, next) {
 		email: user_data.login,
 		sessionID: vscodeSessionManager.create(user_data.login),
 		vscode_state: vscodeState,
-		expiration: addSeconds(
-			process.env.SESSION_STATE_TIMEOUT_HOURS * 60 * 60
-		).toUTCString(),
+		expiration: addSeconds(process.env.SESSION_STATE_TIMEOUT_HOURS * 60 * 60).toUTCString(),
 	}
-
-	const timeout = setInterval(
-		async () =>
-			vscodeSessionManager
-				.verify(session.sessionID)
-				.then((x) =>
-					console.log(
-						`Session ${session.sessionID}: signed ${
-							x ? 'in' : 'out'
-						}`
-					)
-				),
-		1000
-	)
 
 	res.redirect('vscode://marinater.flare/auth?' + querystring.encode(session))
 })
