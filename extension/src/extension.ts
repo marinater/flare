@@ -27,7 +27,7 @@ const validateQueryParams = (data: any) => {
     if (!data.email || !data.sessionID || !data.vscode_state || !data.expiration) {
         return account;
     }
-
+    
     if (vscodeState !== data.vscode_state) {
         return account;
     }

@@ -6,7 +6,7 @@ const makeSocketMapKey = makeRedisKey('socket_id_to_discord')
 const makeGuildMapKey = makeRedisKey('guild_map')
 
 class SocketManager {
-	constructor(io, messageHandler) {
+	constructor(io, messageHandler, guildsHandler) {
 		const sessionID = vscodeSessionManager.create('marinater')
 		console.log(sessionID)
 
@@ -36,7 +36,16 @@ class SocketManager {
 			redisClient.SADD(makeSocketMapKey(discordID), socket.id, () => next())
 		})
 
-		this.io.on('connection', socket => {
+		this.io.on('connection', async socket => {
+			// Send a user's connected guilds first
+			// 	guild: {
+			// 		guildID: msg.guild.id,
+			// 		guildName: msg.guild.name,
+			// 		guildPFP: msg.guild.iconURL(),
+			// 	},
+			const guildsList = await guildsHandler(socket.discordID)
+			this.io.to(socket.id).emit('flare-user-guilds', guildsList)
+
 			socket.on('flare-message', data => messageHandler(socket.discordID, data))
 		})
 	}

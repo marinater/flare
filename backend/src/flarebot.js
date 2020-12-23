@@ -7,7 +7,7 @@ class FlareBot {
 	constructor(io) {
 		this.client = new Discord.Client()
 		this.client.login(process.env.DISCORD_FLAREBOT_TOKEN)
-		this.socketManager = new SocketManager(io, this.handleMessage)
+		this.socketManager = new SocketManager(io, this.handleMessage, this.guildsHandler)
 	}
 
 	extractMessageContents = msg => {
@@ -50,7 +50,7 @@ class FlareBot {
 
 		// Keeps track of edited message
 		this.client.on('messageUpdate', async (oldMsg, newMsg) => {
-			const associatedUsersInGuild = await usersManager.getUserFromGuildAssociation(oldMsg.guild.id)
+			const associatedUsersInGuild = await usersManager.getUsersFromGuildAssociation(oldMsg.guild.id)
 			for (const user of associatedUsersInGuild) {
 				this.socketManager.sendMessage(user.discord_id, 'flare-edit', {
 					oldID: oldMsg.id,
@@ -102,15 +102,30 @@ class FlareBot {
 			}
 
 			// Forward messages over socket
-			const associatedUsersInGuild = await usersManager.getUserFromGuildAssociation(msg.guild.id)
+			const associatedUsersInGuild = await usersManager.getUsersFromGuildAssociation(msg.guild.id)
 			for (const user of associatedUsersInGuild) {
 				this.socketManager.sendMessage(user.discord_id, 'flare-message', this.extractMessageContents(msg))
 			}
 		})
 	}
 
-	handleMessage = msg => {
-		console.log(msg)
+	handleMessage = (discord_id, data) => {
+		const user = this.client.fetchUser(`${discord_id}`)
+
+	}
+
+	guildsHandler = async discord_id => {
+		const guildsList = await usersManager.getGuildsFromUserAssociation(discord_id)
+
+		return guildsList.map((guild_id) => {
+			const guild = this.client.guilds.get(guild_id)
+
+			return {
+				guildID: guild.id,
+				guildName: guild.name,
+				guildPFP: guild.iconURL(),
+			}
+		})
 	}
 }
 

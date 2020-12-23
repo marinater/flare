@@ -18,14 +18,30 @@
             width: 100%;
             margin: 0;
             padding: 0;
+        }
 
+        body {
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
+        }
+
+        #server-container {
+            width: 72px;
+            background-color: red;
+        }
+
+        #channels-container {
+            width: 240px;
+            background-color: green;
+        }
+
+        #chat-container {
             display: flex;
             flex-direction: column;
             align-items: stretch;
             justify-content: space-between;
-        }
-
-        body {
+            flex: 8 0 auto;
             padding: 20px;
         }
 
@@ -35,10 +51,7 @@
 
         #input-field-container {
             width: 100%;
-            /* background-color: var(--vscode-sideBar-background); */
         }
-
-        /* https://material.io/components/text-fields#anatomy */
 
         #message-input {
             width: 100%;
@@ -70,8 +83,8 @@
         }
 
         .message-avatar-container {
-            height: 34px;
-            width: 34px;
+            height: 38px;
+            width: 38px;
             position: relative;
         }
 
@@ -116,12 +129,21 @@
 
 
 <body>
-    <div id="content-container">
-        <div id='message-list-tail'></div>
+    <div id="server-container">
+
     </div>
-    <div id="input-field-container">
-        <input id="message-input" placeholder="Message Channel">
+    <div id="channels-container">
+
     </div>
+    <div id="chat-container">
+        <div id="content-container">
+            <div id='message-list-tail'></div>
+        </div>
+        <div id="input-field-container">
+            <input id="message-input" placeholder="Message Channel" onkeydown="sendMessageToDiscord(this)">
+        </div>
+    </div>
+
 
     <script src="https://unpkg.com/dayjs@1.8.21/dayjs.min.js"></script>
     <script src='{{base_url}}/socket.io/socket.io.js'></script>
@@ -187,7 +209,7 @@
 
             const elem = buildFromTemplate(template, {
                 '.message-info-author': message.author.authorName,
-                '.message-info-timestamp': dayjs(message.timestamp).format('MM/DD/YY [at] hh:mm A'),
+                '.message-info-timestamp': dayjs(message.timestamp).format('MM/DD/YY [at] h:mm A'),
                 '.message-content-row': message.content
             })
 
@@ -213,16 +235,45 @@
             // Every time a new message gets sent, it scrolls the page to the bottom
             updateScroll()
 
+            // Keep track of who the previous author was to ensure messages group correctly
             previousAuthor = data.author.authorID
         }
 
         // Keeps the page scrolled to the bottom
         const updateScroll = () => {
-            var element = document.getElementById("content-container");
+            var element = document.getElementById("content-container")
             element.scrollTop = element.scrollHeight;
         }
 
+        const sendMessageToDiscord = textField => {
+            if (event.key === 'Enter') {
+                console.log(textField.value)
+                // Send the value over socket with user and message. Parse which guild to send it to on backend
+                socket.send('flare-message', textField.value)
+                // clear the textField
+                textField.value = ''
+            }
+        }
+
+        const handleUserGuilds = guildsList => {
+            const template = `
+                <div class='guild-container'>
+                    <img class='guild-icon-img'>
+                </div>
+            `
+            const container = document.getElementById("server-container")
+            container.innerHTML = ''
+
+            for (const guild of guildsList) {
+                const elem = buildFromTemplate(template, {})
+                elem.querySelector('.guild-icon-img').src = guild.guildPFP
+                container.appendChild(elem)
+            }
+
+        }
+
         socket.on('flare-message', handleMessage)
+        socket.on('flare-user-guilds', handleUserGuilds)
         socket.on('connect_error', err => {
             console.error(`connect_error: ${err.message}`)
         })

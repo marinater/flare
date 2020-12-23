@@ -68,7 +68,7 @@ class UsersManager {
 			})
 	}
 
-	getGuildFromUserAssociation = discord_id => {
+	getGuildsFromUserAssociation = discord_id => {
 		const statement = 'select guild_id from guilds_users where discord_id = $1'
 
 		return this.pool
@@ -77,7 +77,7 @@ class UsersManager {
 			.catch(() => null)
 	}
 
-	getUserFromGuildAssociation = guild_id => {
+	getUsersFromGuildAssociation = guild_id => {
 		const statement = 'select discord_id from guilds_users where guild_id = $1'
 
 		return this.pool
