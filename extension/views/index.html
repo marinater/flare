@@ -8,30 +8,221 @@
     <title> Flare </title>
 
     <style>
+        * {
+            box-sizing: border-box;
+        }
 
+        html,
+        body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            justify-content: space-between;
+        }
+
+        body {
+            padding: 20px;
+        }
+
+        #content-container {
+            overflow-y: scroll;
+        }
+
+        #input-field-container {
+            width: 100%;
+            /* background-color: var(--vscode-sideBar-background); */
+        }
+
+        /* https://material.io/components/text-fields#anatomy */
+
+        #message-input {
+            width: 100%;
+            height: 44px;
+            background-color: var(--vscode-input-background);
+            border-radius: 8px;
+            border: 2px solid var(--vscode-button-secondaryBackground);
+            outline: none;
+            padding-left: 20px;
+            color: var(--vscode-input-foreground);
+            transition: 0.8 ease-in-out;
+        }
+
+        #message-input:hover {
+            border-color: var(--vscode-button-secondaryHoverBackground);
+            transition: 0.8 ease-in-out;
+        }
+
+        #message-input:focus {
+            border-color: var(--vscode-button-background);
+            transition: 0.8 ease-in-out;
+        }
+
+        .message-container {
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
+            /* padding-bottom: 10px; */
+        }
+
+        .message-avatar-container {
+            height: 34px;
+            width: 34px;
+            position: relative;
+        }
+
+        .message-data-container {
+            flex: 1 1;
+            padding-left: 8px;
+        }
+
+        .message-info-row {
+            line-height: 20px;
+        }
+
+        .message-avatar-img {
+            width: 100%;
+            height: 100%;
+            display: inline-block;
+            border-radius: 50%;
+            position: absolute;
+            top: 0;
+        }
+
+        .message-content-row {
+            line-height: 20px;
+        }
+
+        .message-info-author {
+            font-weight: 600;
+            padding-right: 3px;
+        }
+
+        .message-info-timestamp {
+            font-size: smaller;
+            color: var(--vscode-titleBar-inactiveForeground);
+        }
+
+        #message-list-tail {
+            height: 20px;
+        }
     </style>
 </head>
 
-<body>
-    <div id="content">
 
+
+<body>
+    <div id="content-container">
+        <div id='message-list-tail'></div>
     </div>
+    <div id="input-field-container">
+        <input id="message-input" placeholder="Message Channel">
+    </div>
+
+    <script src="https://unpkg.com/dayjs@1.8.21/dayjs.min.js"></script>
     <script src='{{base_url}}/socket.io/socket.io.js'></script>
     <script>
-        const contentDiv = document.getElementById('content')
+        "use strict;"
+
+        const contentContainer = document.getElementById('content-container')
+        const messageListTail = document.getElementById('message-list-tail')
+
         const sessionID = '{{sessionID}}'
         const socket = io('{{base_url}}', { auth: { sessionID } })
 
-        const createMessageNode = (message) => {
+        let previousAuthor = null;
+
+        const buildFromTemplate = (template, templateValues) => {
+            for (let query in templateValues) {
+                console.log(query)
+            }
             const container = document.createElement('div')
-            container.innerText = JSON.stringify(message, '&nbsp', 4)
+            container.innerHTML = template;
+
+            for (let query in templateValues) {
+                const elem = container.querySelector(query)
+                elem.innerText = templateValues[query]
+            }
+
             return container
         }
 
-        socket.on('flare-message', message => {
-            contentDiv.appendChild(createMessageNode(message))
-        })
+        //     {
+        // 	messageID: msg.id,
+        // 	author: {
+        // 		authorID: msg.author.id,
+        // 		authorName: msg.author.name,
+        // 		authorPFP: msg.author.displayAvatarURL(),
+        // 	},
+        // 	guild: {
+        // 		guildID: msg.guild.id,
+        // 		guildName: msg.guild.name,
+        // 		guildPFP: msg.guild.iconURL(),
+        // 	},
+        // 	channelID: msg.channel.id,
+        // 	timestamp: msg.createdAt.toISOString(),
+        // 	editedTimestamp: msg.editedAt || msg.editedAt.toISOString(),
+        // 	content: msg.content,
+        // }
+        const createMessage = (message, displayHeader) => {
+            const template = `
+                <div class='message-container'>
+                    <div class='message-avatar-container'>
+                        <img class='message-avatar-img'>
+                    </div>
+                    <div class='message-data-container'>
+                        <div class='message-info-row'>
+                            <span class='message-info-author'></span>
+                            <span class='message-info-timestamp'></span>
+                        </div>
+                        <div class='message-content-row'>
+                        </div>
+                    </div>
+                </div>
+            `
 
+            const elem = buildFromTemplate(template, {
+                '.message-info-author': message.author.authorName,
+                '.message-info-timestamp': dayjs(message.timestamp).format('MM/DD/YY [at] hh:mm A'),
+                '.message-content-row': message.content
+            })
+
+
+            if (displayHeader) {
+                const avatar = elem.querySelector('.message-avatar-img')
+                avatar.src = message.author.authorPFP
+                elem.querySelector('.message-container').style.paddingTop = '15px'
+
+            } else {
+                elem.querySelector('.message-avatar-container').style.height = 'initial'
+                elem.querySelector('.message-avatar-img').remove()
+                elem.querySelector('.message-info-row').remove()
+            }
+
+            return elem
+        }
+
+        const handleMessage = (data) => {
+            const message = createMessage(data, data.author.authorID !== previousAuthor)
+            contentContainer.insertBefore(message, messageListTail)
+
+            // Every time a new message gets sent, it scrolls the page to the bottom
+            updateScroll()
+
+            previousAuthor = data.author.authorID
+        }
+
+        // Keeps the page scrolled to the bottom
+        const updateScroll = () => {
+            var element = document.getElementById("content-container");
+            element.scrollTop = element.scrollHeight;
+        }
+
+        socket.on('flare-message', handleMessage)
         socket.on('connect_error', err => {
             console.error(`connect_error: ${err.message}`)
         })

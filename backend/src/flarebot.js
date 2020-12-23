@@ -10,6 +10,26 @@ class FlareBot {
 		this.socketManager = new SocketManager(io, this.handleMessage)
 	}
 
+	extractMessageContents = msg => {
+		return {
+			messageID: msg.id,
+			author: {
+				authorID: msg.author.id,
+				authorName: msg.author.username,
+				authorPFP: msg.author.displayAvatarURL(),
+			},
+			guild: {
+				guildID: msg.guild.id,
+				guildName: msg.guild.name,
+				guildPFP: msg.guild.iconURL(),
+			},
+			channelID: msg.channel.id,
+			timestamp: msg.createdAt.toISOString(),
+			editedTimestamp: msg.editedAt && msg.editedAt.toISOString(),
+			content: msg.content,
+		}
+	}
+
 	start = () => {
 		// Any initialization required for the bot
 		this.client.on('ready', () => {
@@ -26,6 +46,17 @@ class FlareBot {
 		this.client.on('guildDelete', guild => {
 			console.log('Left a guild: ' + guild.name)
 			usersManager.removeGuildId(guild.id)
+		})
+
+		// Keeps track of edited message
+		this.client.on('messageUpdate', async (oldMsg, newMsg) => {
+			const associatedUsersInGuild = await usersManager.getUserFromGuildAssociation(oldMsg.guild.id)
+			for (const user of associatedUsersInGuild) {
+				this.socketManager.sendMessage(user.discord_id, 'flare-edit', {
+					oldID: oldMsg.id,
+					updated: this.extractMessageContents(newMsg),
+				})
+			}
 		})
 
 		// Process all message related tasks
@@ -71,19 +102,9 @@ class FlareBot {
 			}
 
 			// Forward messages over socket
-			const condensedMessage = {
-				author: msg.author.id,
-				guildID: msg.guild.id,
-				channelID: msg.channel.id,
-				timestamp: msg.createdTimestamp,
-				editedTimestamp: msg.editedTimestamp,
-				content: msg.content,
-			}
-			console.log(condensedMessage)
-
 			const associatedUsersInGuild = await usersManager.getUserFromGuildAssociation(msg.guild.id)
 			for (const user of associatedUsersInGuild) {
-				this.socketManager.sendMessage(user.discord_id, condensedMessage)
+				this.socketManager.sendMessage(user.discord_id, 'flare-message', this.extractMessageContents(msg))
 			}
 		})
 	}

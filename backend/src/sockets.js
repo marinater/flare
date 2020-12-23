@@ -41,7 +41,7 @@ class SocketManager {
 		})
 	}
 
-	sendMessage = (discordID, message) => {
+	sendMessage = (discordID, messageType, message) => {
 		redisClient.SMEMBERS(makeSocketMapKey(discordID), (err, members) => {
 			if (err) {
 				console.error(`could not send message to ${discordID}: ${err.message}`)
@@ -50,7 +50,7 @@ class SocketManager {
 
 			for (const member of members) {
 				console.log(`sending message to ${discordID} (socketID: ${member})`)
-				this.io.to(member).emit('flare-message', message)
+				this.io.to(member).emit(messageType, message)
 			}
 		})
 	}
