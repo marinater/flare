@@ -27,13 +27,18 @@
         }
 
         #server-container {
-            width: 72px;
-            background-color: red;
+            flex: 0 0 72px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            padding: 20px 0px;
         }
 
         #channels-container {
-            width: 240px;
-            background-color: green;
+            flex: 0 0 240px;
+            background-color: var(--vscode-sideBar-background);
+            padding: 12px;
         }
 
         #chat-container {
@@ -62,17 +67,16 @@
             outline: none;
             padding-left: 20px;
             color: var(--vscode-input-foreground);
-            transition: 0.8 ease-in-out;
+            transition: 0.25s ease-out;
         }
 
         #message-input:hover {
             border-color: var(--vscode-button-secondaryHoverBackground);
-            transition: 0.8 ease-in-out;
         }
 
         #message-input:focus {
             border-color: var(--vscode-button-background);
-            transition: 0.8 ease-in-out;
+            transition: 0.25s ease-out;
         }
 
         .message-container {
@@ -123,17 +127,60 @@
         #message-list-tail {
             height: 20px;
         }
+
+        #channels-header {
+            height: 25px;
+        }
+
+        .channel-container {
+            border-radius: 3px;
+            margin-bottom: 6px;
+            padding: 5px 10px;
+            color: var(--vscode-debugIcon-breakpointDisabledForeground);
+        }
+
+        .channel-container-active,
+        .channel-container:hover {
+            color: var(--vscode-editor-foreground);
+            background-color: var(--vscode-editor-selectionBackground);
+        }
+
+        .guild-container {
+            position: relative;
+            height: 48px;
+            width: 48px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+            background-color: var(--vscode-sideBar-dropBackground);
+            overflow: hidden;
+            transition: 0.25s ease-out;
+            padding-top: 5px;
+            padding-bottom: 5px;
+        }
+
+        .guild-active,
+        .guild-container:hover {
+            border-radius: 30%;
+        }
+
+        .guild-name-text {
+            position: absolute;
+            font-size: 20px;
+            vertical-align: middle;
+        }
     </style>
 </head>
-
-
 
 <body>
     <div id="server-container">
 
     </div>
     <div id="channels-container">
-
+        <span id="channels-header">
+            TEXT CHANNELS
+        </span>
     </div>
     <div id="chat-container">
         <div id="content-container">
@@ -156,7 +203,25 @@
         const sessionID = '{{sessionID}}'
         const socket = io('{{base_url}}', { auth: { sessionID } })
 
-        let previousAuthor = null;
+        const LocalStorage = {}
+
+        const previousAuthor = null
+        /*
+        {
+            guildID: {
+                name: string,
+                icon: string | null,
+                channels: {
+                    name: string,
+                    messages: [
+                        {
+
+                        }
+                    ]
+                }
+            }
+        }
+        */
 
         const buildFromTemplate = (template, templateValues) => {
             for (let query in templateValues) {
@@ -173,21 +238,21 @@
             return container
         }
 
-        //     {
+        // {
         // 	messageID: msg.id,
         // 	author: {
-        // 		authorID: msg.author.id,
-        // 		authorName: msg.author.name,
-        // 		authorPFP: msg.author.displayAvatarURL(),
+        // 		id: msg.author.id,
+        // 		name: msg.author.username,
+        // 		pfp: msg.author.displayAvatarURL(),
         // 	},
         // 	guild: {
-        // 		guildID: msg.guild.id,
-        // 		guildName: msg.guild.name,
-        // 		guildPFP: msg.guild.iconURL(),
+        // 		id: msg.guild.id,
+        // 		name: msg.guild.name,
+        // 		icon: msg.guild.iconURL(),
         // 	},
         // 	channelID: msg.channel.id,
         // 	timestamp: msg.createdAt.toISOString(),
-        // 	editedTimestamp: msg.editedAt || msg.editedAt.toISOString(),
+        // 	editedTimestamp: msg.editedAt && msg.editedAt.toISOString(),
         // 	content: msg.content,
         // }
         const createMessage = (message, displayHeader) => {
@@ -208,7 +273,7 @@
             `
 
             const elem = buildFromTemplate(template, {
-                '.message-info-author': message.author.authorName,
+                '.message-info-author': message.author.name,
                 '.message-info-timestamp': dayjs(message.timestamp).format('MM/DD/YY [at] h:mm A'),
                 '.message-content-row': message.content
             })
@@ -216,7 +281,7 @@
 
             if (displayHeader) {
                 const avatar = elem.querySelector('.message-avatar-img')
-                avatar.src = message.author.authorPFP
+                avatar.src = message.author.pfp
                 elem.querySelector('.message-container').style.paddingTop = '15px'
 
             } else {
@@ -229,14 +294,14 @@
         }
 
         const handleMessage = (data) => {
-            const message = createMessage(data, data.author.authorID !== previousAuthor)
+            const message = createMessage(data, data.author.id !== previousAuthor)
             contentContainer.insertBefore(message, messageListTail)
 
             // Every time a new message gets sent, it scrolls the page to the bottom
             updateScroll()
 
             // Keep track of who the previous author was to ensure messages group correctly
-            previousAuthor = data.author.authorID
+            previousAuthor = data.author.id
         }
 
         // Keeps the page scrolled to the bottom
@@ -255,28 +320,91 @@
             }
         }
 
-        const handleUserGuilds = guildsList => {
+        const getInitials = name => name.split(/\W/).map(x => x ? x[0] : '').join('')
+
+        const handleGuilds = guildsList => {
             const template = `
                 <div class='guild-container'>
                     <img class='guild-icon-img'>
+                    <span class='guild-name-text'>
+                    </span>
                 </div>
             `
             const container = document.getElementById("server-container")
             container.innerHTML = ''
 
             for (const guild of guildsList) {
-                const elem = buildFromTemplate(template, {})
-                elem.querySelector('.guild-icon-img').src = guild.guildPFP
+                const elem = buildFromTemplate(template, {
+                    '.guild-name-text': getInitials(guild.name)
+                })
+
+                if (!guild.icon) {
+                    elem.querySelector('.guild-icon-img').remove()
+                } else {
+                    elem.querySelector('.guild-icon-img').src = guild.icon
+                    elem.querySelector('.guild-name-text').remove()
+                }
+
+                container.appendChild(elem)
+
+                const channelMap = {}
+                for (const channel of guild.guildChannels) {
+                    channelMap[channel.channelID] = []
+                }
+
+
+            }
+        }
+
+        const setChannels = guild => {
+            const container = document.getElementById("channels-container")
+            container.innerHTML = ''
+
+            const headerTemplate = `
+                <div id='channels-header'>
+                    TEXT CHANNELS
+                </div>
+            `
+            const header = buildFromTemplate(headerTemplate, {})
+            container.appendChild(header)
+
+            if (!guild) return
+
+            const channelTemplate = `
+                <div class='channel-container'>
+                    <span class='channel-name-text'></span>
+                </div>
+            `
+
+            for (const channel of guild.guildChannels) {
+                const elem = buildFromTemplate(channelTemplate, {
+                    '.channel-name-text': `# ${channel.channelName.toLowerCase()}`
+                })
+
+                const channelContainer = elem.querySelector('.channel-container')
+                channelContainer.onclick = () => {
+                    document.querySelectorAll('.channel-container-active').forEach(element => {
+                        element.classList.remove('channel-container-active')
+                    })
+
+                    channelContainer.classList.add('channel-container-active')
+                }
+
                 container.appendChild(elem)
             }
-
         }
 
         socket.on('flare-message', handleMessage)
-        socket.on('flare-user-guilds', handleUserGuilds)
+        socket.on('flare-user-guilds', data => {
+            handleGuilds(data)
+            setChannels(data.length > 0 ? data[0] : null)
+        })
+
         socket.on('connect_error', err => {
             console.error(`connect_error: ${err.message}`)
         })
+
+        socket.emit('flare-user-guilds', '')
     </script>
 </body>
 

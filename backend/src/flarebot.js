@@ -14,14 +14,14 @@ class FlareBot {
 		return {
 			messageID: msg.id,
 			author: {
-				authorID: msg.author.id,
-				authorName: msg.author.username,
-				authorPFP: msg.author.displayAvatarURL(),
+				id: msg.author.id,
+				name: msg.author.username,
+				pfp: msg.author.displayAvatarURL(),
 			},
 			guild: {
-				guildID: msg.guild.id,
-				guildName: msg.guild.name,
-				guildPFP: msg.guild.iconURL(),
+				id: msg.guild.id,
+				name: msg.guild.name,
+				icon: msg.guild.iconURL(),
 			},
 			channelID: msg.channel.id,
 			timestamp: msg.createdAt.toISOString(),
@@ -103,29 +103,43 @@ class FlareBot {
 
 			// Forward messages over socket
 			const associatedUsersInGuild = await usersManager.getUsersFromGuildAssociation(msg.guild.id)
-			for (const user of associatedUsersInGuild) {
-				this.socketManager.sendMessage(user.discord_id, 'flare-message', this.extractMessageContents(msg))
+			for (const dbUser of associatedUsersInGuild) {
+				const discordID = dbUser.discord_id
+				const user = await msg.guild.members.fetch(discordID)
+				if (!msg.channel.permissionsFor(user).has('VIEW_CHANNEL')) continue
+
+				this.socketManager.sendMessage(discordID, 'flare-message', this.extractMessageContents(msg))
 			}
 		})
 	}
 
-	handleMessage = (discord_id, data) => {
-		const user = this.client.fetchUser(`${discord_id}`)
-
+	handleMessage = async (discordID, data) => {
+		const user = await this.client.users.fetch(discordID)
 	}
 
-	guildsHandler = async discord_id => {
-		const guildsList = await usersManager.getGuildsFromUserAssociation(discord_id)
+	guildsHandler = async discordID => {
+		const guildsList = await usersManager.getGuildsFromUserAssociation(discordID)
+		const guildInfo = []
 
-		return guildsList.map((guild_id) => {
-			const guild = this.client.guilds.get(guild_id)
+		for (const guildID of guildsList) {
+			const guild = await this.client.guilds.fetch(guildID)
+			const guildMember = await guild.members.fetch(discordID)
 
-			return {
-				guildID: guild.id,
-				guildName: guild.name,
-				guildPFP: guild.iconURL(),
-			}
-		})
+			const guildChannels = guild.channels.cache
+				.filter(channel => channel.type === 'text')
+				.filter(channel => channel.permissionsFor(guildMember).has('VIEW_CHANNEL'))
+				.map(channel => ({ channelName: channel.name, channelID: channel.id }))
+
+			console.log(guildChannels)
+			guildInfo.push({
+				id: guild.id,
+				name: guild.name,
+				icon: guild.iconURL(),
+				guildChannels,
+			})
+		}
+
+		return guildInfo
 	}
 }
 

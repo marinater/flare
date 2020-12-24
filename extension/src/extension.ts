@@ -6,8 +6,8 @@ import * as querystring from 'querystring';
 import { v4 as uuidv4 } from 'uuid';
 import * as vscode from 'vscode';
 
-// const BASE_URL = 'http://localhost:3000';
-const BASE_URL = 'https://discord-flare.herokuapp.com';
+const BASE_URL = 'http://localhost:3000';
+// const BASE_URL = 'https://discord-flare.herokuapp.com';
 
 type Account = {
     signedIn: true
@@ -27,7 +27,7 @@ const validateQueryParams = (data: any) => {
     if (!data.email || !data.sessionID || !data.vscode_state || !data.expiration) {
         return account;
     }
-    
+
     if (vscodeState !== data.vscode_state) {
         return account;
     }

@@ -73,7 +73,7 @@ class UsersManager {
 
 		return this.pool
 			.query(statement, [discord_id])
-			.then(res => res.rows)
+			.then(res => res.rows.map(x => x.guild_id))
 			.catch(() => null)
 	}
 
