@@ -1,4 +1,8 @@
 # flare
-Adds discord server integrations to VS Code
+- Adds discord server integrations to VS Code
+
 ---
-## Discord integration
+# Made by
+- Samarth Patel
+- Derek Li
+
