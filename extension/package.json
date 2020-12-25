@@ -13,7 +13,6 @@
 	],
 	"activationEvents": [
 		"onCommand:flare.open",
-		"onCommand:flare.login",
 		"onCommand:flare.logout",
 		"onUri"
 	],
@@ -23,10 +22,6 @@
 			{
 				"command": "flare.open",
 				"title": "Open Flare"
-			},
-			{
-				"command": "flare.login",
-				"title": "Login to Flare"
 			},
 			{
 				"command": "flare.logout",

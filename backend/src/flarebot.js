@@ -46,6 +46,9 @@ class FlareBot {
 
 		// Keeps track of edited message
 		this.client.on('messageUpdate', async (oldMsg, newMsg) => {
+			console.log(oldMsg)
+			if (!oldMsg.guild || oldMsg.embeds) return
+
 			const associatedUsersInGuild = await usersManager.getUsersFromGuildAssociation(oldMsg.guild.id)
 			for (const user of associatedUsersInGuild) {
 				this.socketManager.sendMessage(user.discord_id, 'flare-edit', {
@@ -56,13 +59,13 @@ class FlareBot {
 		})
 
 		// Process all message related tasks
-		this.client.on('message', async msg => {
+		this.client.on('message', async message => {
 			const prefix = '!'
 
-			if (msg.author.id === this.client.user.id) return
+			if (message.author.id === this.client.user.id) return
 
 			// Parse out the arguments for the command
-			const args = msg.content.slice(prefix.length).trim().split(' ')
+			const args = message.content.slice(prefix.length).trim().split(' ')
 			const command = args.shift().toLowerCase()
 
 			// TODO: Add help command - returns embed with list of commands
@@ -70,23 +73,23 @@ class FlareBot {
 			// Create a link between discord_id and github_username through OAuth
 			if (command === 'link') {
 				// Reply with `${process.env.BASE_URL}/auth/discord?discord_id=${msg.author.id}#${msg.author.discriminator}`
-				const responseURL = createRegistrationLink(msg.author.id)
-				msg.author.send(`Click this link to register: ${responseURL}`)
+				const responseURL = createRegistrationLink(message.author.id)
+				message.author.send(`Click this link to register: ${responseURL}`)
 			} else if (command === 'connect') {
 				// make sure user sends in server
-				if (msg.guild === null) msg.channel.send(`Please use this command inside the server you would like to connect to.`)
+				if (message.guild === null) message.channel.send(`Please use this command inside the server you would like to connect to.`)
 				else {
 					// add person to guild
-					const result = await usersManager.addGuildUserAssociation(msg.guild.id, msg.author.id)
-					if (result) msg.channel.send(`Successfully linked ${msg.author} to ${msg.guild.name}!`)
-					else msg.channel.send(`There was an error linking ${msg.author} to ${msg.guild.name}!`)
+					const result = await usersManager.addGuildUserAssociation(message.guild.id, message.author.id)
+					if (result) message.channel.send(`Successfully linked ${message.author} to ${message.guild.name}!`)
+					else message.channel.send(`There was an error linking ${message.author} to ${message.guild.name}!`)
 				}
 			} else if (command === 'disconnect') {
-				if (msg.guild === null) msg.channel.send(`Please use this command inside the server you would like to disconnect from.`)
+				if (message.guild === null) message.channel.send(`Please use this command inside the server you would like to disconnect from.`)
 				else {
-					const result = await usersManager.removeGuildUserAssociation(msg.guild.id, msg.author.id)
-					if (result) msg.channel.send(`Successfully disconnected ${msg.author} from ${msg.guild.name}`)
-					else msg.channel.send(`There was an error disconnecting ${msg.author} from ${msg.guild.name}!`)
+					const result = await usersManager.removeGuildUserAssociation(message.guild.id, message.author.id)
+					if (result) message.channel.send(`Successfully disconnected ${message.author} from ${message.guild.name}`)
+					else message.channel.send(`There was an error disconnecting ${message.author} from ${message.guild.name}!`)
 				}
 			} else if (command === 'help') {
 				const helpEmbed = new Discord.MessageEmbed()
@@ -98,19 +101,27 @@ class FlareBot {
 						{ name: '!disconnect:', value: 'Run this command inside a server with FlareBot to disconnect your account in VSCode' }
 					)
 
-				msg.channel.send(helpEmbed)
+				message.channel.send(helpEmbed)
 			}
 
-			// Forward messages over socket
-			const associatedUsersInGuild = await usersManager.getUsersFromGuildAssociation(msg.guild.id)
-			for (const dbUser of associatedUsersInGuild) {
-				const discordID = dbUser.discord_id
-				const user = await msg.guild.members.fetch(discordID)
-				if (!msg.channel.permissionsFor(user).has('VIEW_CHANNEL')) continue
-
-				this.socketManager.sendMessage(discordID, 'flare-message', this.extractMessageContents(msg))
-			}
+			if (message.channel.type === 'dm') return
+			this.propogateMessage(this.extractMessageContents(message))
 		})
+	}
+
+	propogateMessage = async (message, guild, channel) => {
+		if (!guild) guild = await this.client.guilds.fetch(message.guildID)
+		if (!channel) channel = await this.client.channels.fetch(message.channelID)
+
+		const associatedUsersInGuild = await usersManager.getUsersFromGuildAssociation(message.guildID)
+
+		for (const dbUser of associatedUsersInGuild) {
+			const discordID = dbUser.discord_id
+			const user = await guild.members.fetch(discordID)
+			if (!channel.permissionsFor(user).has('VIEW_CHANNEL')) continue
+
+			this.socketManager.sendMessage(discordID, 'flare-message', message)
+		}
 	}
 
 	handleMessage = async (discordID, data) => {
@@ -131,10 +142,9 @@ class FlareBot {
 			name: guildMember.displayName,
 			pfp: guildMember.user.displayAvatarURL(),
 		}
-
 		res.content = data.content
 
-		this.socketManager.sendMessage(discordID, 'flare-message', res)
+		this.propogateMessage(res)
 	}
 
 	guildsHandler = async discordID => {

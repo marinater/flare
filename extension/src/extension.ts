@@ -21,7 +21,6 @@ type Account = {
 let vscodeState = uuidv4();
 
 const validateQueryParams = (data: any) => {
-    vscode.window.showInformationMessage(data);
     let account: Account = { signedIn: false };
 
     if (!data.email || !data.sessionID || !data.vscode_state || !data.expiration) {
@@ -123,7 +122,7 @@ class Flare {
 
     open = () => {
         if (!this.account.signedIn) {
-            vscode.window.showErrorMessage('Please log in to first');
+            this.login();
             return;
         }
 
@@ -150,13 +149,22 @@ class Flare {
 
     login = () => {
         if (!this.account.signedIn) {
+            vscode.window.showInformationMessage('Please open the link and sign in to Github');
             this.accountOps.signIn();
+        }
+        else {
+            vscode.window.showInformationMessage('Signed in as ' + this.account.email);
+            this.open();
         }
     };
 
     logout = () => {
         if (this.account.signedIn) {
             this.accountOps.signOut();
+            vscode.window.showInformationMessage('Signed out of Flare');
+        }
+        else {
+            vscode.window.showInformationMessage('You are already signed out of Flare')
         }
     };
 }
@@ -165,14 +173,12 @@ export function activate(context: vscode.ExtensionContext) {
     const flare = new Flare(context);
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('flare.login', flare.login)
-    );
-    context.subscriptions.push(
         vscode.commands.registerCommand('flare.logout', flare.logout)
     );
     context.subscriptions.push(
         vscode.commands.registerCommand('flare.open', flare.open)
     );
+
     context.subscriptions.push(
         vscode.window.registerUriHandler({
             handleUri: flare.accountOps.uriAuthHandler(flare.open)
