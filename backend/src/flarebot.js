@@ -12,18 +12,14 @@ class FlareBot {
 
 	extractMessageContents = msg => {
 		return {
-			messageID: msg.id,
 			author: {
 				id: msg.author.id,
 				name: msg.author.username,
 				pfp: msg.author.displayAvatarURL(),
 			},
-			guild: {
-				id: msg.guild.id,
-				name: msg.guild.name,
-				icon: msg.guild.iconURL(),
-			},
+			messageID: msg.id,
 			channelID: msg.channel.id,
+			guildID: msg.guild.id,
 			timestamp: msg.createdAt.toISOString(),
 			editedTimestamp: msg.editedAt && msg.editedAt.toISOString(),
 			content: msg.content,
@@ -92,13 +88,17 @@ class FlareBot {
 					if (result) msg.channel.send(`Successfully disconnected ${msg.author} from ${msg.guild.name}`)
 					else msg.channel.send(`There was an error disconnecting ${msg.author} from ${msg.guild.name}!`)
 				}
-			} else if (command === 'request') {
-				const username = await usersManager.getGithubUsername(msg.author.id)
-				if (username !== null) msg.reply(username)
-				else msg.reply("that user don't exist")
-			} else if (command === 'allusers') {
-				const allUsers = await usersManager.getAllUsers()
-				if (allUsers !== null) console.log(allUsers)
+			} else if (command === 'help') {
+				const helpEmbed = new Discord.MessageEmbed()
+					.setColor('#0099ff')
+					.setTitle('Flare Help')
+					.addFields(
+						{ name: '!link:', value: 'Run this command to link your Github to your Discord' },
+						{ name: '!connect:', value: 'Run this command inside a server with FlareBot to receive messages in VSCode' },
+						{ name: '!disconnect:', value: 'Run this command inside a server with FlareBot to disconnect your account in VSCode' }
+					)
+
+				msg.channel.send(helpEmbed)
 			}
 
 			// Forward messages over socket
@@ -114,7 +114,27 @@ class FlareBot {
 	}
 
 	handleMessage = async (discordID, data) => {
-		const user = await this.client.users.fetch(discordID)
+		if (!data.guildID || !data.channelID || !data.content) {
+			return
+		}
+
+		const guild = await this.client.guilds.fetch(data.guildID)
+		const guildMember = await guild.members.fetch(discordID)
+		const channel = await this.client.channels.fetch(data.channelID)
+
+		if (!channel) return
+
+		let res = await channel.send(`${guildMember.displayName}: ${data.content}`)
+		res = this.extractMessageContents(res)
+		res.author = {
+			id: guildMember.user.id,
+			name: guildMember.displayName,
+			pfp: guildMember.user.displayAvatarURL(),
+		}
+
+		res.content = data.content
+
+		this.socketManager.sendMessage(discordID, 'flare-message', res)
 	}
 
 	guildsHandler = async discordID => {
@@ -125,17 +145,16 @@ class FlareBot {
 			const guild = await this.client.guilds.fetch(guildID)
 			const guildMember = await guild.members.fetch(discordID)
 
-			const guildChannels = guild.channels.cache
+			const channels = guild.channels.cache
 				.filter(channel => channel.type === 'text')
 				.filter(channel => channel.permissionsFor(guildMember).has('VIEW_CHANNEL'))
-				.map(channel => ({ channelName: channel.name, channelID: channel.id }))
+				.map(channel => ({ name: channel.name, id: channel.id }))
 
-			console.log(guildChannels)
 			guildInfo.push({
 				id: guild.id,
 				name: guild.name,
 				icon: guild.iconURL(),
-				guildChannels,
+				channels,
 			})
 		}
 

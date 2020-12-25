@@ -8,14 +8,13 @@ class UsersManager {
 	}
 
 	addUser = (discord_id, github_username) => {
-		console.log(`add user github_username requested by ${discord_id}`)
 		const statement = 'insert into users (discord_id, github_username) values ($1, $2) on conflict (discord_id) do update set discord_id = $1, github_username = $2'
 
 		return this.pool
 			.query(statement, [discord_id, github_username])
 			.then(() => true)
 			.catch(err => {
-				console.log(err)
+				console.error(err)
 				return false
 			})
 	}
@@ -27,7 +26,7 @@ class UsersManager {
 			.query(statement, [guild_id])
 			.then(() => true)
 			.catch(err => {
-				console.log(err)
+				console.error(err)
 				return false
 			})
 	}
@@ -39,7 +38,7 @@ class UsersManager {
 			.query(statement, [guild_id])
 			.then(() => true)
 			.catch(err => {
-				console.log(err)
+				console.error(err)
 				return false
 			})
 	}
@@ -51,7 +50,7 @@ class UsersManager {
 			.query(statement, [guild_id, discord_id])
 			.then(() => true)
 			.catch(err => {
-				console.log(err)
+				console.error(err)
 				return false
 			})
 	}
@@ -63,7 +62,7 @@ class UsersManager {
 			.query(statement, [guild_id, discord_id])
 			.then(() => true)
 			.catch(err => {
-				console.log(err)
+				console.error(err)
 				return false
 			})
 	}
@@ -87,7 +86,6 @@ class UsersManager {
 	}
 
 	getGithubUsername = async discord_id => {
-		console.log(`get user github_username requested by ${discord_id}`)
 		const statement = 'select github_username from users where discord_id = $1'
 
 		return this.pool
@@ -97,7 +95,6 @@ class UsersManager {
 	}
 
 	getDiscordID = async github_username => {
-		console.log(`get discord id requested by ${github_username}`)
 		const statement = 'select discord_id from users where github_username = $1'
 
 		return this.pool
@@ -107,7 +104,6 @@ class UsersManager {
 	}
 
 	getAllUsers = async () => {
-		console.log(`get all users requested`)
 		const statement = 'select * from guilds_users'
 
 		return this.pool

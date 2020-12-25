@@ -1,15 +1,10 @@
-const e = require('express')
 const { usersManager } = require('./data-store')
 const { vscodeSessionManager, redisClient, makeRedisKey } = require('./sessions')
 
 const makeSocketMapKey = makeRedisKey('socket_id_to_discord')
-const makeGuildMapKey = makeRedisKey('guild_map')
 
 class SocketManager {
-	constructor(io, messageHandler, guildsHandler, channelHandler) {
-		const sessionID = vscodeSessionManager.create('marinater')
-		console.log(sessionID)
-
+	constructor(io, messageHandler, guildsHandler) {
 		this.io = io
 
 		this.io.use(async (socket, next) => {
@@ -37,13 +32,6 @@ class SocketManager {
 		})
 
 		this.io.on('connection', async socket => {
-			// Send a user's connected guilds first
-			// 	guild: {
-			// 		guildID: msg.guild.id,
-			// 		guildName: msg.guild.name,
-			// 		guildPFP: msg.guild.iconURL(),
-			// 	},
-
 			socket.on('flare-user-guilds', async () => {
 				const guildsList = await guildsHandler(socket.discordID)
 				this.io.to(socket.id).emit('flare-user-guilds', guildsList)
@@ -61,7 +49,6 @@ class SocketManager {
 			}
 
 			for (const member of members) {
-				console.log(`sending message to ${discordID} (socketID: ${member})`)
 				this.io.to(member).emit(messageType, message)
 			}
 		})
