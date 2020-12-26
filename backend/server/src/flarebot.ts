@@ -1,35 +1,39 @@
-const Discord = require('discord.js')
-var { usersManager } = require('./data-store')
-var { createRegistrationLink } = require('./routes/auth/discord')
-var { SocketManager } = require('./sockets')
+import Discord from 'discord.js'
+import type { Server as SocketServer } from 'socket.io'
+import { usersManager } from './controllers/data-store'
+import { SocketForwardedMessage, SocketManager } from './controllers/sockets'
+import { createRegistrationLink } from './routes/auth/discord'
+import { AppSettings } from './server-utils'
 
-class FlareBot {
-	constructor(io) {
-		this.client = new Discord.Client()
-		this.client.login(process.env.DISCORD_FLAREBOT_TOKEN)
-		this.socketManager = new SocketManager(io, this.handleMessage, this.guildsHandler)
+export class FlareBot {
+    client = new Discord.Client()
+    socketManager: SocketManager
+
+    constructor(io: SocketServer) {
+        this.client.login(AppSettings.discordToken)
+        this.socketManager = new SocketManager(io, this.handleMessage, this.guildsHandler)
 	}
 
-	extractMessageContents = msg => {
+	extractMessageContents = (msg: Discord.Message | Discord.PartialMessage): SocketForwardedMessage => {
 		return {
 			author: {
-				id: msg.author.id,
-				name: msg.author.username,
-				pfp: msg.author.displayAvatarURL(),
+				id: msg.author?.id || '',
+                name: msg.author?.username || '',
+				pfp: msg.author?.displayAvatarURL() || '',
 			},
 			messageID: msg.id,
 			channelID: msg.channel.id,
-			guildID: msg.guild.id,
+			guildID: msg.guild?.id || '',
 			timestamp: msg.createdAt.toISOString(),
-			editedTimestamp: msg.editedAt && msg.editedAt.toISOString(),
-			content: msg.content,
+			editedTimestamp: msg.editedAt && msg.editedAt.toISOString() || '',
+			content: msg.content || '',
 		}
 	}
 
 	start = () => {
 		// Any initialization required for the bot
 		this.client.on('ready', () => {
-			console.log(`Logged in as ${this.client.user.tag}!`)
+			console.log(`Logged in as ${this.client.user?.tag}!`)
 		})
 
 		// When the bot gets added to a new server, the bot stores the guild_id to the database
@@ -49,10 +53,13 @@ class FlareBot {
 			console.log(oldMsg)
 			if (!oldMsg.guild || oldMsg.embeds) return
 
-			const associatedUsersInGuild = await usersManager.getUsersFromGuildAssociation(oldMsg.guild.id)
-			for (const user of associatedUsersInGuild) {
-				this.socketManager.sendMessage(user.discord_id, 'flare-edit', {
-					oldID: oldMsg.id,
+            const associatedUsersInGuild = await usersManager.getUsersFromGuildAssociation(oldMsg.guild.id)
+            if (!associatedUsersInGuild) return
+
+            for (const user of associatedUsersInGuild) {
+                this.socketManager.sendMessage(user.discord_id, 'flare-edit', {
+                // @ts-ignore
+                    oldID: oldMsg.id,
 					updated: this.extractMessageContents(newMsg),
 				})
 			}
@@ -62,13 +69,11 @@ class FlareBot {
 		this.client.on('message', async message => {
 			const prefix = '!'
 
-			if (message.author.id === this.client.user.id) return
+			if (message.author.id === this.client.user?.id) return
 
 			// Parse out the arguments for the command
 			const args = message.content.slice(prefix.length).trim().split(' ')
-			const command = args.shift().toLowerCase()
-
-			// TODO: Add help command - returns embed with list of commands
+			const command = args.shift()?.toLowerCase()
 
 			// Create a link between discord_id and github_username through OAuth
 			if (command === 'link') {
@@ -109,22 +114,25 @@ class FlareBot {
 		})
 	}
 
-	propogateMessage = async (message, guild, channel) => {
+	propogateMessage = async (message: any, guild?: Discord.Guild, channel?: Discord.GuildChannel) => {
 		if (!guild) guild = await this.client.guilds.fetch(message.guildID)
-		if (!channel) channel = await this.client.channels.fetch(message.channelID)
+        // @ts-ignore
+        if (!channel) channel = await this.client.channels.fetch(message.channelID)
 
 		const associatedUsersInGuild = await usersManager.getUsersFromGuildAssociation(message.guildID)
+        if (!associatedUsersInGuild) return
 
-		for (const dbUser of associatedUsersInGuild) {
+        for (const dbUser of associatedUsersInGuild) {
 			const discordID = dbUser.discord_id
 			const user = await guild.members.fetch(discordID)
-			if (!channel.permissionsFor(user).has('VIEW_CHANNEL')) continue
+            // @ts-ignore
+            if (!channel.permissionsFor(user).has('VIEW_CHANNEL')) continue
 
 			this.socketManager.sendMessage(discordID, 'flare-message', message)
 		}
 	}
 
-	handleMessage = async (discordID, data) => {
+	handleMessage = async (discordID: string, data: any) => {
 		if (!data.guildID || !data.channelID || !data.content) {
 			return
 		}
@@ -135,6 +143,7 @@ class FlareBot {
 
 		if (!channel) return
 
+        //@ts-ignore
 		let res = await channel.send(`${guildMember.displayName}: ${data.content}`)
 		res = this.extractMessageContents(res)
 		res.author = {
@@ -147,16 +156,19 @@ class FlareBot {
 		this.propogateMessage(res)
 	}
 
-	guildsHandler = async discordID => {
-		const guildsList = await usersManager.getGuildsFromUserAssociation(discordID)
-		const guildInfo = []
+	guildsHandler = async (discordID: string) => {
+        const guildsList = await usersManager.getGuildsFromUserAssociation(discordID)
+        if (!guildsList) return []
+
+        const guildInfo = []
 
 		for (const guildID of guildsList) {
 			const guild = await this.client.guilds.fetch(guildID)
 			const guildMember = await guild.members.fetch(discordID)
 
 			const channels = guild.channels.cache
-				.filter(channel => channel.type === 'text')
+                .filter(channel => channel.type === 'text')
+                // @ts-ignore
 				.filter(channel => channel.permissionsFor(guildMember).has('VIEW_CHANNEL'))
 				.map(channel => ({ name: channel.name, id: channel.id }))
 
@@ -172,4 +184,3 @@ class FlareBot {
 	}
 }
 
-module.exports = FlareBot

@@ -6,8 +6,8 @@ import * as querystring from 'querystring';
 import { v4 as uuidv4 } from 'uuid';
 import * as vscode from 'vscode';
 
-// const BASE_URL = 'http://localhost:3000';
-const BASE_URL = 'https://discord-flare.herokuapp.com';
+const BASE_URL = 'http://localhost:3000';
+// const BASE_URL = 'https://discord-flare.herokuapp.com';
 
 type Account = {
     signedIn: true
@@ -84,7 +84,6 @@ class AccountOps {
 
     uriAuthHandler = (callback: () => void) => (uri: vscode.Uri) => {
         const queryParams = querystring.decode(uri.query);
-        vscode.window.showInformationMessage(uri.query);
 
         const account = validateQueryParams(queryParams);
         if (!account.signedIn) {
@@ -164,7 +163,7 @@ class Flare {
             vscode.window.showInformationMessage('Signed out of Flare');
         }
         else {
-            vscode.window.showInformationMessage('You are already signed out of Flare')
+            vscode.window.showInformationMessage('You are already signed out of Flare');
         }
     };
 }

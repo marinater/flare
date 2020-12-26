@@ -1,13 +1,12 @@
-const { Pool } = require('pg')
+import { Pool } from 'pg'
+import { AppSettings } from '../server-utils'
 
 class UsersManager {
-	constructor() {
-		this.pool = new Pool({
-			connectionString: process.env.DATABASE_URL,
-		})
-	}
+    pool: Pool = new Pool({
+			connectionString: AppSettings.databaseURL,
+	})
 
-	addUser = (discord_id, github_username) => {
+	addUser = (discord_id: string, github_username: string) => {
 		const statement = 'insert into users (discord_id, github_username) values ($1, $2) on conflict (discord_id) do update set discord_id = $1, github_username = $2'
 
 		return this.pool
@@ -19,7 +18,7 @@ class UsersManager {
 			})
 	}
 
-	storeGuildId = guild_id => {
+	storeGuildId = (guild_id: string) => {
 		const statement = 'insert into guilds (guild_id) values ($1) on conflict (guild_id) do nothing'
 
 		return this.pool
@@ -31,7 +30,7 @@ class UsersManager {
 			})
 	}
 
-	removeGuildId = guild_id => {
+	removeGuildId = (guild_id: string) => {
 		const statement = 'delete from guilds where guild_id = ($1)'
 
 		return this.pool
@@ -43,7 +42,7 @@ class UsersManager {
 			})
 	}
 
-	addGuildUserAssociation = (guild_id, discord_id) => {
+	addGuildUserAssociation = (guild_id: string, discord_id: string) => {
 		const statement = 'insert into guilds_users (guild_id, discord_id) values ($1, $2) on conflict (guild_id, discord_id) do nothing'
 
 		return this.pool
@@ -55,7 +54,7 @@ class UsersManager {
 			})
 	}
 
-	removeGuildUserAssociation = (guild_id, discord_id) => {
+	removeGuildUserAssociation = (guild_id: string, discord_id: string) => {
 		const statement = 'delete from guilds_users where guild_id = ($1) and discord_id = ($2)'
 
 		return this.pool
@@ -67,7 +66,7 @@ class UsersManager {
 			})
 	}
 
-	getGuildsFromUserAssociation = discord_id => {
+	getGuildsFromUserAssociation = (discord_id: string) => {
 		const statement = 'select guild_id from guilds_users where discord_id = $1'
 
 		return this.pool
@@ -76,7 +75,7 @@ class UsersManager {
 			.catch(() => null)
 	}
 
-	getUsersFromGuildAssociation = guild_id => {
+	getUsersFromGuildAssociation = (guild_id: string) => {
 		const statement = 'select discord_id from guilds_users where guild_id = $1'
 
 		return this.pool
@@ -85,7 +84,7 @@ class UsersManager {
 			.catch(() => null)
 	}
 
-	getGithubUsername = async discord_id => {
+	getGithubUsername = async (discord_id: string) => {
 		const statement = 'select github_username from users where discord_id = $1'
 
 		return this.pool
@@ -94,7 +93,7 @@ class UsersManager {
 			.catch(() => null)
 	}
 
-	getDiscordID = async github_username => {
+	getDiscordID = async (github_username: string) => {
 		const statement = 'select discord_id from users where github_username = $1'
 
 		return this.pool
@@ -117,6 +116,4 @@ class UsersManager {
 	}
 }
 
-module.exports = {
-	usersManager: new UsersManager(),
-}
+export const usersManager = new UsersManager()
