@@ -1,31 +1,31 @@
 import Discord from 'discord.js'
 import type { Server as SocketServer } from 'socket.io'
-import { usersManager } from './controllers/data-store'
+import { DatabaseCodes, usersManager } from './controllers/data-store'
 import { SocketForwardedMessage, SocketManager } from './controllers/sockets'
 import { createRegistrationLink } from './routes/auth/discord'
 import { AppSettings } from './server-utils'
 
 export class FlareBot {
-    client = new Discord.Client()
-    socketManager: SocketManager
+	client = new Discord.Client()
+	socketManager: SocketManager
 
-    constructor(io: SocketServer) {
-        this.client.login(AppSettings.discordToken)
-        this.socketManager = new SocketManager(io, this.handleMessage, this.guildsHandler)
+	constructor(io: SocketServer) {
+		this.client.login(AppSettings.discordToken)
+		this.socketManager = new SocketManager(io, this.handleMessage, this.guildsHandler)
 	}
 
 	extractMessageContents = (msg: Discord.Message | Discord.PartialMessage): SocketForwardedMessage => {
 		return {
 			author: {
 				id: msg.author?.id || '',
-                name: msg.author?.username || '',
+				name: msg.author?.username || '',
 				pfp: msg.author?.displayAvatarURL() || '',
 			},
 			messageID: msg.id,
 			channelID: msg.channel.id,
 			guildID: msg.guild?.id || '',
 			timestamp: msg.createdAt.toISOString(),
-			editedTimestamp: msg.editedAt && msg.editedAt.toISOString() || '',
+			editedTimestamp: (msg.editedAt && msg.editedAt.toISOString()) || '',
 			content: msg.content || '',
 		}
 	}
@@ -39,13 +39,13 @@ export class FlareBot {
 		// When the bot gets added to a new server, the bot stores the guild_id to the database
 		this.client.on('guildCreate', guild => {
 			console.log('Joined a new guild: ' + guild.name)
-			usersManager.storeGuildId(guild.id)
+			usersManager.addGuild(guild.id)
 		})
 
 		// When the bot gets removed from a server, the bot removes the guild_id from the database
 		this.client.on('guildDelete', guild => {
 			console.log('Left a guild: ' + guild.name)
-			usersManager.removeGuildId(guild.id)
+			usersManager.removeGuild(guild.id)
 		})
 
 		// Keeps track of edited message
@@ -53,13 +53,13 @@ export class FlareBot {
 			console.log(oldMsg)
 			if (!oldMsg.guild || oldMsg.embeds) return
 
-            const associatedUsersInGuild = await usersManager.getUsersFromGuildAssociation(oldMsg.guild.id)
-            if (!associatedUsersInGuild) return
+			const associatedUsers = await usersManager.getAssociatedUsers(oldMsg.guild.id)
+			if (associatedUsers === DatabaseCodes.NoSuchElement || associatedUsers === DatabaseCodes.Error) return
 
-            for (const user of associatedUsersInGuild) {
-                this.socketManager.sendMessage(user.discord_id, 'flare-edit', {
-                // @ts-ignore
-                    oldID: oldMsg.id,
+			for (const user of associatedUsers) {
+				this.socketManager.sendMessage(user, 'flare-edit', {
+					// @ts-ignore
+					oldID: oldMsg.id,
 					updated: this.extractMessageContents(newMsg),
 				})
 			}
@@ -85,14 +85,14 @@ export class FlareBot {
 				if (message.guild === null) message.channel.send(`Please use this command inside the server you would like to connect to.`)
 				else {
 					// add person to guild
-					const result = await usersManager.addGuildUserAssociation(message.guild.id, message.author.id)
+					const result = await usersManager.addUserToGuild(message.author.id, message.guild.id)
 					if (result) message.channel.send(`Successfully linked ${message.author} to ${message.guild.name}!`)
 					else message.channel.send(`There was an error linking ${message.author} to ${message.guild.name}!`)
 				}
 			} else if (command === 'disconnect') {
 				if (message.guild === null) message.channel.send(`Please use this command inside the server you would like to disconnect from.`)
 				else {
-					const result = await usersManager.removeGuildUserAssociation(message.guild.id, message.author.id)
+					const result = await usersManager.removeUserFromGuild(message.author.id, message.guild.id)
 					if (result) message.channel.send(`Successfully disconnected ${message.author} from ${message.guild.name}`)
 					else message.channel.send(`There was an error disconnecting ${message.author} from ${message.guild.name}!`)
 				}
@@ -116,17 +116,16 @@ export class FlareBot {
 
 	propogateMessage = async (message: any, guild?: Discord.Guild, channel?: Discord.GuildChannel) => {
 		if (!guild) guild = await this.client.guilds.fetch(message.guildID)
-        // @ts-ignore
-        if (!channel) channel = await this.client.channels.fetch(message.channelID)
+		// @ts-ignore
+		if (!channel) channel = await this.client.channels.fetch(message.channelID)
 
-		const associatedUsersInGuild = await usersManager.getUsersFromGuildAssociation(message.guildID)
-        if (!associatedUsersInGuild) return
+		const associatedUsers = await usersManager.getAssociatedUsers(message.guildID)
+		if (associatedUsers === DatabaseCodes.Error || associatedUsers === DatabaseCodes.NoSuchElement) return
 
-        for (const dbUser of associatedUsersInGuild) {
-			const discordID = dbUser.discord_id
+		for (const discordID of associatedUsers) {
 			const user = await guild.members.fetch(discordID)
-            // @ts-ignore
-            if (!channel.permissionsFor(user).has('VIEW_CHANNEL')) continue
+			// @ts-ignore
+			if (!channel.permissionsFor(user).has('VIEW_CHANNEL')) continue
 
 			this.socketManager.sendMessage(discordID, 'flare-message', message)
 		}
@@ -143,7 +142,7 @@ export class FlareBot {
 
 		if (!channel) return
 
-        //@ts-ignore
+		//@ts-ignore
 		let res = await channel.send(`${guildMember.displayName}: ${data.content}`)
 		res = this.extractMessageContents(res)
 		res.author = {
@@ -157,18 +156,18 @@ export class FlareBot {
 	}
 
 	guildsHandler = async (discordID: string) => {
-        const guildsList = await usersManager.getGuildsFromUserAssociation(discordID)
-        if (!guildsList) return []
+		const guildsList = await usersManager.getAssociatedGuilds(discordID)
+		if (guildsList === DatabaseCodes.Error || guildsList === DatabaseCodes.NoSuchElement) return []
 
-        const guildInfo = []
+		const guildInfo = []
 
 		for (const guildID of guildsList) {
 			const guild = await this.client.guilds.fetch(guildID)
 			const guildMember = await guild.members.fetch(discordID)
 
 			const channels = guild.channels.cache
-                .filter(channel => channel.type === 'text')
-                // @ts-ignore
+				.filter(channel => channel.type === 'text')
+				// @ts-ignore
 				.filter(channel => channel.permissionsFor(guildMember).has('VIEW_CHANNEL'))
 				.map(channel => ({ name: channel.name, id: channel.id }))
 
@@ -183,4 +182,3 @@ export class FlareBot {
 		return guildInfo
 	}
 }
-

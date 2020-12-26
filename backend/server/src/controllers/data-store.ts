@@ -1,118 +1,156 @@
-import { Pool } from 'pg'
-import { AppSettings } from '../server-utils'
+import { bgGreen as chalkGreenBG, green as chalkGreen } from 'chalk'
+import { createLogStream } from '../logging'
+import { Guild, User } from '../models/index'
+
+const dbLogger = createLogStream({ info: chalkGreen('SEQUELIZE: '), error: chalkGreenBG('SEQUELIZE: ') })
+
+export enum DatabaseCodes {
+	Error,
+	NoSuchElement,
+	Success,
+}
 
 class UsersManager {
-    pool: Pool = new Pool({
-			connectionString: AppSettings.databaseURL,
-	})
-
-	addUser = (discord_id: string, github_username: string) => {
-		const statement = 'insert into users (discord_id, github_username) values ($1, $2) on conflict (discord_id) do update set discord_id = $1, github_username = $2'
-
-		return this.pool
-			.query(statement, [discord_id, github_username])
-			.then(() => true)
-			.catch(err => {
-				console.error(err)
-				return false
-			})
+	addUser = async (discordID: string, githubID: string) => {
+		try {
+			await User.create({ discordID, githubID })
+			dbLogger.info(`Saved discord id ${discordID} into Users db`)
+			return DatabaseCodes.Success
+		} catch (err) {
+			dbLogger.error(err.message)
+			return DatabaseCodes.Error
+		}
 	}
 
-	storeGuildId = (guild_id: string) => {
-		const statement = 'insert into guilds (guild_id) values ($1) on conflict (guild_id) do nothing'
-
-		return this.pool
-			.query(statement, [guild_id])
-			.then(() => true)
-			.catch(err => {
-				console.error(err)
-				return false
-			})
+	addGuild = async (guildID: string) => {
+		try {
+			await Guild.create({ guildID })
+			dbLogger.info(`Saved discord id ${guildID} into Guilds db`)
+			return DatabaseCodes.Success
+		} catch (err) {
+			dbLogger.error(err.message)
+			return DatabaseCodes.Error
+		}
 	}
 
-	removeGuildId = (guild_id: string) => {
-		const statement = 'delete from guilds where guild_id = ($1)'
+	removeGuild = async (guildID: string) => {
+		try {
+			const count = await Guild.destroy({ where: { guildID } })
+			if (count === 0) {
+				dbLogger.info(`Tried to delete guildID ${guildID} from guilds but no such guildID was found`)
+				return DatabaseCodes.NoSuchElement
+			}
 
-		return this.pool
-			.query(statement, [guild_id])
-			.then(() => true)
-			.catch(err => {
-				console.error(err)
-				return false
-			})
+			dbLogger.info(`guildID ${guildID} deleted from guilds`)
+			return DatabaseCodes.Success
+		} catch (err) {
+			dbLogger.error(err.message)
+			return DatabaseCodes.Error
+		}
 	}
 
-	addGuildUserAssociation = (guild_id: string, discord_id: string) => {
-		const statement = 'insert into guilds_users (guild_id, discord_id) values ($1, $2) on conflict (guild_id, discord_id) do nothing'
+	addUserToGuild = async (discordID: string, guildID: string) => {
+		try {
+			const [guild, user] = await Promise.all([Guild.findOne({ where: { guildID } }), User.findOne({ where: { discordID } })])
+			if (!guild || !user) {
+				dbLogger.info(`Could not add ${discordID} to ${guildID} since one or both don't exist`)
+				return DatabaseCodes.NoSuchElement
+			}
 
-		return this.pool
-			.query(statement, [guild_id, discord_id])
-			.then(() => true)
-			.catch(err => {
-				console.error(err)
-				return false
-			})
+			await guild.addUser(user)
+			return DatabaseCodes.Success
+		} catch (err) {
+			dbLogger.error(err.message)
+			return DatabaseCodes.Error
+		}
 	}
 
-	removeGuildUserAssociation = (guild_id: string, discord_id: string) => {
-		const statement = 'delete from guilds_users where guild_id = ($1) and discord_id = ($2)'
+	removeUserFromGuild = async (discordID: string, guildID: string) => {
+		try {
+			const [guild, user] = await Promise.all([Guild.findOne({ where: { guildID } }), User.findOne({ where: { discordID } })])
+			if (!guild || !user) {
+				dbLogger.info(`Could not add ${discordID} to ${guildID} since one or both don't exist`)
+				return DatabaseCodes.NoSuchElement
+			}
 
-		return this.pool
-			.query(statement, [guild_id, discord_id])
-			.then(() => true)
-			.catch(err => {
-				console.error(err)
-				return false
-			})
+			await guild.removeUser(user)
+			return DatabaseCodes.Success
+		} catch (err) {
+			dbLogger.error(err.message)
+			return DatabaseCodes.Error
+		}
 	}
 
-	getGuildsFromUserAssociation = (discord_id: string) => {
-		const statement = 'select guild_id from guilds_users where discord_id = $1'
+	getAssociatedGuilds = async (discordID: string) => {
+		try {
+			const user = await User.findOne({ where: { discordID } })
+			if (!user) {
+				dbLogger.info(`Could not find user ${discordID} to find associated guilds for`)
+				return DatabaseCodes.NoSuchElement
+			}
 
-		return this.pool
-			.query(statement, [discord_id])
-			.then(res => res.rows.map(x => x.guild_id))
-			.catch(() => null)
+			const guilds = await user.getGuilds()
+			return guilds.map(guild => guild.guildID)
+		} catch (err) {
+			dbLogger.error(err.message)
+			return DatabaseCodes.Error
+		}
 	}
 
-	getUsersFromGuildAssociation = (guild_id: string) => {
-		const statement = 'select discord_id from guilds_users where guild_id = $1'
+	getAssociatedUsers = async (guildID: string) => {
+		try {
+			const guild = await Guild.findOne({ where: { guildID } })
+			if (!guild) {
+				dbLogger.info(`Could not find guild ${guildID} to find associated users for`)
+				return DatabaseCodes.NoSuchElement
+			}
 
-		return this.pool
-			.query(statement, [guild_id])
-			.then(res => res.rows)
-			.catch(() => null)
+			const users = await guild.getUsers()
+			return users.map(user => user.discordID)
+		} catch (err) {
+			dbLogger.error(err.message)
+			return DatabaseCodes.Error
+		}
 	}
 
-	getGithubUsername = async (discord_id: string) => {
-		const statement = 'select github_username from users where discord_id = $1'
+	getGithubUsername = async (discordID: string) => {
+		try {
+			const user = await User.findOne({ where: { discordID } })
+			if (!user) {
+				dbLogger.info(`Could not find user with ${discordID} to find associated github username for`)
+				return DatabaseCodes.NoSuchElement
+			}
 
-		return this.pool
-			.query(statement, [discord_id])
-			.then(res => res.rows[0].github_username)
-			.catch(() => null)
+			return user.githubID
+		} catch (err) {
+			dbLogger.error(err.message)
+			return DatabaseCodes.Error
+		}
 	}
 
-	getDiscordID = async (github_username: string) => {
-		const statement = 'select discord_id from users where github_username = $1'
+	getDiscordID = async (githubID: string) => {
+		try {
+			const user = await User.findOne({ where: { githubID } })
+			if (!user) {
+				dbLogger.info(`Could not find user with ${githubID} to find associated github username for`)
+				return DatabaseCodes.NoSuchElement
+			}
 
-		return this.pool
-			.query(statement, [github_username])
-			.then(res => res.rows[0].discord_id)
-			.catch(() => null)
+			return user.discordID
+		} catch (err) {
+			dbLogger.error(err.message)
+			return DatabaseCodes.Error
+		}
 	}
 
 	getAllUsers = async () => {
-		const statement = 'select * from guilds_users'
-
-		return this.pool
-			.query(statement)
-			.then(res => res.rows)
-			.catch(() => null)
-	}
-
-	stop = () => {
-		this.pool.end()
+		try {
+			const users = await User.findAll()
+			return users.map(user => user.discordID)
+		} catch (err) {
+			dbLogger.error(err.message)
+			return DatabaseCodes.Error
+		}
 	}
 }
 

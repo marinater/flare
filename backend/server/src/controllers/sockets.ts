@@ -1,34 +1,32 @@
 import type { Server as SocketServer } from 'socket.io'
-import { usersManager } from './data-store'
+import { DatabaseCodes, usersManager } from './data-store'
 import { client as redisClient, makeRedisKey, vscodeSessionManager } from './sessions'
 
 export interface SocketForwardedMessage {
-    author: {
-        id: string,
-        name: string,
-        pfp: string,
-    },
-    messageID: string,
-    channelID: string,
-    guildID: string,
-    timestamp: string,
-    editedTimestamp: string,
-    content: string,
+	author: {
+		id: string
+		name: string
+		pfp: string
+	}
+	messageID: string
+	channelID: string
+	guildID: string
+	timestamp: string
+	editedTimestamp: string
+	content: string
 }
 
-export interface SocketInitInfo {
-
-}
+export interface SocketInitInfo {}
 
 export class SocketManager {
-    makeSocketMapKey = makeRedisKey('socket_id_to_discord')
-    io: SocketServer
+	makeSocketMapKey = makeRedisKey('socket_id_to_discord')
+	io: SocketServer
 
-    constructor(io: SocketServer, messageHandler: (discordID: string, data: SocketForwardedMessage) => void, guildsHandler: (discordID: string) => Promise<SocketInitInfo>) {
+	constructor(io: SocketServer, messageHandler: (discordID: string, data: SocketForwardedMessage) => void, guildsHandler: (discordID: string) => Promise<SocketInitInfo>) {
 		this.io = io
 
 		this.io.use(async (socket, next) => {
-            const sessionID = (socket.handshake.auth as { sessionID?: string }).sessionID
+			const sessionID = (socket.handshake.auth as { sessionID?: string }).sessionID
 
 			if (!sessionID || typeof sessionID !== 'string') {
 				next(new Error('not authorized'))
@@ -42,18 +40,19 @@ export class SocketManager {
 			}
 
 			const discordID = await usersManager.getDiscordID(githubUsername)
-			if (!discordID) {
+			if (discordID === DatabaseCodes.Error || discordID === DatabaseCodes.NoSuchElement) {
 				next(new Error('Discord ID not registered for the github username'))
 				return
 			}
 
-            // @ts-ignore
+			// @ts-ignore
 			socket.discordID = discordID
-            redisClient.SADD(this.makeSocketMapKey(discordID), socket.id, () => next())
+			redisClient.SADD(this.makeSocketMapKey(discordID), socket.id, () => next())
 		})
 
 		this.io.on('connection', async socket => {
 			socket.on('flare-user-guilds', async () => {
+				console.log('AYAYAYA')
 				const guildsList = await guildsHandler(socket.discordID)
 				this.io.to(socket.id).emit('flare-user-guilds', guildsList)
 			})

@@ -11,6 +11,8 @@
 	},
 	"dependencies": {
 		"@octokit/request": "^5.4.12",
+		"@types/validator": "^13.1.2",
+		"chalk": "^4.1.0",
 		"cookie-parser": "~1.4.4",
 		"debug": "~2.6.9",
 		"discord.js": "^12.5.1",
@@ -23,8 +25,10 @@
 		"nodemailer": "^6.4.17",
 		"nodemon": "^2.0.6",
 		"pg": "^8.5.1",
+		"pg-hstore": "^2.3.3",
 		"pug": "2.0.0-beta11",
 		"redis": "^3.0.2",
+		"sequelize": "^6.3.5",
 		"socket.io": "^3.0.4",
 		"uuid": "^8.3.2"
 	},
