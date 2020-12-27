@@ -17,7 +17,7 @@ export const sequelize = new Sequelize(AppSettings.databaseURL)
 sequelize
 	.authenticate()
 	.then(() => console.log(`sequelize connected to database at ${AppSettings.databaseURL}`))
-	// .then(() => sequelize.sync({ alter: true }))
+	// .then(() => sequelize.sync({ force: true }))
 	.catch(error => {
 		console.error(`sequelize could not connect to database at ${AppSettings.databaseURL}: ${error}`)
 		process.exit(1)
