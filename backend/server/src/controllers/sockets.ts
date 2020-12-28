@@ -7,6 +7,14 @@ const makeGuildKey = (guildID: string) => `guild:${guildID}`
 const makeChannelKey = (channelID: string) => `channel:${channelID}`
 const makeUserKey = (discordID: string) => `discordID:${discordID}`
 
+interface SocketAttachment {
+	id: string
+	name: string | null
+	url: string
+	height: number | null
+	width: number | null
+}
+
 export interface SocketForwardedMessage {
 	author: {
 		id: string
@@ -19,6 +27,7 @@ export interface SocketForwardedMessage {
 	timestamp: string
 	editedTimestamp: string | null
 	content: string
+	attachments: SocketAttachment[]
 }
 
 // !!!! DON'T WITHOUT FIXING VALIDATE_MESSAGE_POST !!!!
@@ -34,7 +43,8 @@ interface ChannelInfo {
 	id: string
 	name: string
 }
-interface GuildInfo {
+
+export interface GuildInfo {
 	id: string
 	name: string
 	icon: string | null
@@ -65,7 +75,10 @@ export class SocketManager {
 		io.on('connection', this.onConnection)
 	}
 
-	authenticateSocket = async (socket: Socket, next: (err?: ExtendedError | undefined) => void) => {
+	authenticateSocket = async (
+		socket: Socket,
+		next: (err?: ExtendedError | undefined) => void
+	) => {
 		// @ts-ignore
 		const sessionID = socket.handshake.auth.sessionID as any | undefined
 
@@ -81,7 +94,10 @@ export class SocketManager {
 		}
 
 		const discordID = await usersManager.getDiscordID(githubUsername)
-		if (discordID === DatabaseCodes.Error || discordID === DatabaseCodes.NoSuchElement) {
+		if (
+			discordID === DatabaseCodes.Error ||
+			discordID === DatabaseCodes.NoSuchElement
+		) {
 			next(new Error('Discord ID not registered for the github username'))
 			return
 		}
@@ -112,13 +128,22 @@ export class SocketManager {
 
 		socket.on('message-post', (dataUnknown: any) => {
 			if (!this.validateMessagePost(dataUnknown)) return
-			const data = dataUnknown as { channelID: string; content: string; guildID: string }
+			const data = dataUnknown as {
+				channelID: string
+				content: string
+				guildID: string
+			}
 			this.hooks.onMessagePost({ discordID, ...data })
 		})
 	}
 
 	validateMessagePost = (data: any) => {
-		return Object.keys(data).length === 3 && typeof data.channelID === 'string' && typeof data.content === 'string' && typeof data.guildID === 'string'
+		return (
+			Object.keys(data).length === 3 &&
+			typeof data.channelID === 'string' &&
+			typeof data.content === 'string' &&
+			typeof data.guildID === 'string'
+		)
 	}
 
 	// FUNCTIONS INITIATED BY BACKEND
@@ -135,8 +160,9 @@ export class SocketManager {
 	forwardTypingIndicator = (discordUsername: string, channelID: string) => {}
 	forwardMessageEdit = (message: SocketForwardedMessage) => {}
 	forwardMessage = (message: SocketForwardedMessage) => {
-		console.log(message)
-		this.io.to(makeChannelKey(message.channelID)).emit('forward-message', message)
+		this.io
+			.to(makeChannelKey(message.channelID))
+			.emit('forward-message', message)
 	}
 	forwardGuildCreation = (guildInfo: GuildInfo) => {}
 	forwardChannelCreaton = (channelInfo: ChannelInfo) => {}

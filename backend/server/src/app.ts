@@ -56,7 +56,7 @@ const io = new Server(server, {
 })
 
 const flareBot = new FlareBot(io)
-if (process.env.ENABLE_DISCORD_BOT === 'true') {
+if (AppSettings.enableFlareBot) {
 	flareBot.start()
 }
 
