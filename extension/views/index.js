@@ -18,10 +18,37 @@ const setActiveChannel = () => {
 	document.getElementById(`channel-${currentChannel.id}`).classList.add('channel-container-active');
 };
 
+const setGuildNotification = guildID => {
+	console.log('asfd')
+	if (currentGuild.id === `guild-${guildID}`) return;
+	const dotTemplate = `
+		<span class='guild-notification-dot'></span>
+	`
+	
+	const dot = buildFromTemplate(dotTemplate, {});
+	const guild = document.getElementById(`guild-${guildID}`);
+
+	guild.appendChild(dot);
+
+	document.getElementById(`guild-${guildID}`).classList.add('guild-container-notification');
+}
+
+const removeGuildNotification = () => {
+	const guild = document.getElementById(`guild-${currentGuild.id}`)
+
+	guild.classList.remove('guild-container-notification');
+	var elements = guild.getElementsByClassName("guild-notification-dot");
+
+	while (elements[0]) {
+		elements[0].parentNode.removeChild(elements[0]);
+	}
+
+}
+
 const setChannelNotification = channelID => {
 	if (currentChannel.id === `channel-${channelID}`) return;
 	const dotTemplate = `
-		<span class='notification-dot'></span>
+		<span class='channel-notification-dot'></span>
 	`
 
 	const dot = buildFromTemplate(dotTemplate, {});
@@ -36,7 +63,7 @@ const removeChannelNotification = () => {
 	const channel = document.getElementById(`channel-${currentChannel.id}`)
 
 	channel.classList.remove('channel-container-notification');
-	var elements = channel.getElementsByClassName("notification-dot");
+	var elements = channel.getElementsByClassName("channel-notification-dot");
 
 	while (elements[0]) {
 		elements[0].parentNode.removeChild(elements[0]);
@@ -165,6 +192,7 @@ const setGuilds = () => {
 			currentChannel = channelList.length > 0 ? channelList[0] : null;
 
 			setActiveGuild();
+			removeGuildNotification();
 			setChannels();
 			setChats();
 		};
@@ -267,7 +295,11 @@ const handleMessage = data => {
 	if (currentChannel && data.channelID === currentChannel.id) {
 		createMessage(data, data.author.id !== prevAuthor);
 	} else {
-		setChannelNotification(data.channelID);
+		if (currentGuild && data.guildID === currentGuild.id) {
+			setChannelNotification(data.channelID);
+		} else {
+			setGuildNotification(data.guildID);
+		}
 	}
 };
 

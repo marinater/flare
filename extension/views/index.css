@@ -154,8 +154,8 @@ body {
 	align-items: center;
 	border-radius: 50%;
 	background-color: var(--vscode-sideBar-dropBackground);
-	overflow: hidden;
 	transition: 0.25s ease-out;
+	overflow: hidden;
 	margin-bottom: 8px;
 }
 
@@ -185,7 +185,7 @@ body {
 	color: var(--vscode-editor-foreground);
 }
 
-.notification-dot {
+.channel-notification-dot {
 	background-color: var(--vscode-minimap-errorHighlight);
 	border-radius: 50%;
 	position: absolute; 
@@ -194,4 +194,15 @@ body {
 	transform: translate(calc(-50% - 12px), 0%); 
 	height: 12px; 
 	width: 12px; 
-  }
+}
+
+.guild-notification-dot {
+	background-color: var(--vscode-minimap-errorHighlight);
+	border-radius: 50%;
+	position: absolute; 
+	left: 0;
+	top: calc(50% - 6px);
+	transform: translate(-50%, 0%); 
+	height: 12px; 
+	width: 12px; 
+}
