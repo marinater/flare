@@ -6,17 +6,43 @@ let localMessageStorage = {};
 
 const setActiveGuild = () => {
 	document.querySelectorAll('.guild-active').forEach(elem => {
-		if (elem.id !== `guild-${currentGuild.id}`) {elem.classList.remove('guild-active');}
+		if (elem.id !== `guild-${currentGuild.id}`) { elem.classList.remove('guild-active'); }
 	});
 	document.getElementById(`guild-${currentGuild.id}`).classList.add('guild-active');
 };
 
 const setActiveChannel = () => {
 	document.querySelectorAll('.channel-container-active').forEach(elem => {
-		if (elem.id !== `channel-${currentChannel.id}`) {elem.classList.remove('channel-container-active');}
+		if (elem.id !== `channel-${currentChannel.id}`) { elem.classList.remove('channel-container-active'); }
 	});
 	document.getElementById(`channel-${currentChannel.id}`).classList.add('channel-container-active');
 };
+
+const setChannelNotification = channelID => {
+	if (currentChannel.id === `channel-${channelID}`) return;
+	const dotTemplate = `
+		<span class='notification-dot'></span>
+	`
+
+	const dot = buildFromTemplate(dotTemplate, {});
+	const channel = document.getElementById(`channel-${channelID}`);
+
+	channel.appendChild(dot);
+
+	document.getElementById(`channel-${channelID}`).classList.add('channel-container-notification');
+}
+
+const removeChannelNotification = () => {
+	const channel = document.getElementById(`channel-${currentChannel.id}`)
+
+	channel.classList.remove('channel-container-notification');
+	var elements = channel.getElementsByClassName("notification-dot");
+
+	while (elements[0]) {
+		elements[0].parentNode.removeChild(elements[0]);
+	}
+
+}
 
 const buildFromTemplate = (template, templateValues) => {
 	const container = document.createElement('div');
@@ -65,34 +91,34 @@ const createMessage = (message, displayHeader) => {
 		elem.querySelector('.message-info-row').remove();
 	}
 
-    const imageAttachmentTemplate = `
+	const imageAttachmentTemplate = `
         <img class='message-attachment-image'/>
     `;
 
-    const fileAttachmentTemplate = `
+	const fileAttachmentTemplate = `
         <div class='message-attachment-file'>
             <a class='message-attachment-file-text'></a>
         </div>
     `;
 
-    const attachmentContainer = elem.querySelector('.message-attachment-container');
-    for (const attachment of message.attachments) {
-        let attachmentElem;
-        if (attachment.height === null || attachment.width === null) {
-            attachmentElem = buildFromTemplate(fileAttachmentTemplate, { '.message-attachment-file-text': attachment.name || '(File attachment)' });
-            const attachmentText = attachmentElem.querySelector('.message-attachment-file-text');
-            attachmentText.href = attachment.url;
-        }
-        else {
-            attachmentElem = buildFromTemplate(imageAttachmentTemplate, {});
-            const attachmentText = attachmentElem.querySelector('.message-attachment-image');
-            attachmentText.src = attachment.url;
-            attachmentText.style.height = `${attachment.height}px`;
-            attachmentText.style.width = `${attachment.width}px`;
-        }
+	const attachmentContainer = elem.querySelector('.message-attachment-container');
+	for (const attachment of message.attachments) {
+		let attachmentElem;
+		if (attachment.height === null || attachment.width === null) {
+			attachmentElem = buildFromTemplate(fileAttachmentTemplate, { '.message-attachment-file-text': attachment.name || '(File attachment)' });
+			const attachmentText = attachmentElem.querySelector('.message-attachment-file-text');
+			attachmentText.href = attachment.url;
+		}
+		else {
+			attachmentElem = buildFromTemplate(imageAttachmentTemplate, {});
+			const attachmentText = attachmentElem.querySelector('.message-attachment-image');
+			attachmentText.src = attachment.url;
+			attachmentText.style.height = `${attachment.height}px`;
+			attachmentText.style.width = `${attachment.width}px`;
+		}
 
-        attachmentContainer.appendChild(attachmentElem);
-    }
+		attachmentContainer.appendChild(attachmentElem);
+	}
 
 
 
@@ -158,10 +184,10 @@ const setChannels = () => {
                 </div>
     `;
 
-    const header = buildFromTemplate(headerTemplate, {});
+	const header = buildFromTemplate(headerTemplate, {});
 	container.appendChild(header);
 
-	if (!currentGuild) {return;}
+	if (!currentGuild) { return; }
 
 	const channelTemplate = `
                 <div class='channel-container'>
@@ -181,6 +207,7 @@ const setChannels = () => {
 			currentChannel = channel;
 
 			setActiveChannel();
+			removeChannelNotification();
 			document.getElementById('message-input').placeholder = `Message #${channel.name}`;
 			setChats();
 		};
@@ -191,14 +218,17 @@ const setChannels = () => {
 	setActiveChannel();
 };
 
+
+
 const setChats = () => {
 	document.getElementById('message-list').innerHTML = '<a id="message-list-tail"></a>';
 
-	if (!currentChannel) {return;}
+	if (!currentChannel) { return; }
 
 	let prevAuthor = null;
 	for (const message of currentChannel.messages) {
 		createMessage(message, message.author.id !== prevAuthor);
+
 		prevAuthor = message.author.id;
 	}
 };
@@ -206,7 +236,7 @@ const setChats = () => {
 const inputField = document.getElementById('message-input');
 
 inputField.onkeydown = event => {
-	if (event.keyCode !== 13) {return;}
+	if (event.keyCode !== 13) { return; }
 	if (!currentChannel && !currentGuild) {
 		return;
 	}
@@ -223,11 +253,11 @@ inputField.onkeydown = event => {
 };
 
 const handleMessage = data => {
-    const guild = localMessageStorage[data.guildID];
-    if (!guild) {return;}
+	const guild = localMessageStorage[data.guildID];
+	if (!guild) { return; }
 
 	const channel = guild.channels[data.channelID];
-    if (!channel) {return;}
+	if (!channel) { return; }
 
 
 	const messages = channel.messages;
@@ -235,15 +265,17 @@ const handleMessage = data => {
 	messages.push(data);
 
 	if (currentChannel && data.channelID === currentChannel.id) {
-        createMessage(data, data.author.id !== prevAuthor);
-    }
+		createMessage(data, data.author.id !== prevAuthor);
+	} else {
+		setChannelNotification(data.channelID);
+	}
 };
 
 socket.on('forward-message', handleMessage);
 socket.on('socket-init', data => {
-    localMessageStorage = {};
+	localMessageStorage = {};
 
-    console.log(data);
+	console.log(data);
 	for (const guild of data.guilds) {
 		localMessageStorage[guild.id] = {
 			id: guild.id,
@@ -275,7 +307,7 @@ socket.on('socket-init', data => {
 });
 
 socket.onAny((event) => {
-    console.log(event);
+	console.log(event);
 });
 
 socket.on('connect_error', err => {

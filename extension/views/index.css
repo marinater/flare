@@ -29,6 +29,7 @@ body {
 	flex: 0 0 240px;
 	background-color: var(--vscode-sideBar-background);
 	padding: 12px;
+	overflow: hidden;
 }
 
 #chat-container {
@@ -134,6 +135,7 @@ body {
 	border-radius: 3px;
 	margin-bottom: 6px;
 	padding: 5px 10px;
+	position: relative;
 	color: var(--vscode-debugIcon-breakpointDisabledForeground);
 }
 
@@ -178,3 +180,18 @@ body {
 	border-radius: 5px;
 	margin-top: 8px;
 }
+
+.channel-container-notification {
+	color: var(--vscode-editor-foreground);
+}
+
+.notification-dot {
+	background-color: var(--vscode-minimap-errorHighlight);
+	border-radius: 50%;
+	position: absolute; 
+	left: 0;
+	top: calc(50% - 6px);
+	transform: translate(calc(-50% - 12px), 0%); 
+	height: 12px; 
+	width: 12px; 
+  }
