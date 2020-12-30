@@ -4,7 +4,8 @@ export const createLogStream = <SubStreams extends {}>(colors: SubStreams) => {
 	const subStreams = {} as { [k in keyof SubStreams]: LogStream }
 
 	for (const subStream in colors) {
-		subStreams[subStream] = (message: string) => `${colors[subStream]}: ${message}`
+		subStreams[subStream] = (message: string) =>
+			console.log(`${colors[subStream]}: ${message}`)
 	}
 
 	return subStreams
