@@ -6,6 +6,7 @@ import {
 	SocketForwardedMessage,
 	SocketInitInfo,
 	SocketManager,
+	SocketMessageFetch,
 	SocketPushMessage,
 } from './controllers/sockets'
 import { createRegistrationLink } from './routes/auth/discord'
@@ -103,8 +104,9 @@ export class FlareBot {
 		client.login(AppSettings.discordToken)
 
 		const socketHooks = {
-			onMessagePost: this.onMessagePost,
 			onSocketInit: this.onSocketInit,
+			onMessagePost: this.onMessagePost,
+			onMessageFetch: this.onMessageFetch
 		}
 
 		this.socketManager = new SocketManager(io, socketHooks)
@@ -200,7 +202,7 @@ export class FlareBot {
 			console.log(`Removed guild ${guild.name}:${guild.id} from database`)
 			usersManager.removeGuild(guild.id)
 		})
-		client.on('messageUpdate', () => {})
+		client.on('messageUpdate', () => { })
 		client.on('message', async (message) => {
 			switch (message.content) {
 				case '!link':
@@ -229,6 +231,31 @@ export class FlareBot {
 	}
 
 	// #############################################################################
+
+	onMessageFetch = async (data: SocketMessageFetch): Promise<SocketForwardedMessage[]> => {
+	
+		const guild = await getGuildFromGuildID(data.guildID)
+		if (!guild) return []
+
+		const guildMember = await getGuildMemberFromDiscordID(
+			data.discordID,
+			guild
+		)
+
+		if (!guildMember) return []
+
+		const channelUnknown = await getChannelFromChannelID(data.channelID)
+
+		if (!channelUnknown || !guildMember.hasPermission('SEND_MESSAGES'))
+			return []
+
+		if (channelUnknown.type !== 'text') return []
+
+		const channel = channelUnknown as Discord.TextChannel
+
+		return channel.messages.fetch({ limit: data.limit, before: data.before }).then(messages => messages.map(extractMessageContents)).catch(() => [])
+	}
+
 
 	onMessagePost = async (data: SocketPushMessage) => {
 		const guild = await getGuildFromGuildID(data.guildID)
