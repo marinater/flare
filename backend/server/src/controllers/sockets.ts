@@ -56,12 +56,23 @@ export interface SocketInitInfo {
 	discordID: string
 }
 
+// Retrieves old messages from server
+export interface SocketMessageFetch {
+	guildID: string
+	channelID: string
+	discordID: string
+	limit: number
+	before?: string
+}
+
 // FUNCTIONS INITITATED FROM VSCODE
 // post message to discord
 // get init info
+// get previous messages
 interface SocketHooks {
 	onSocketInit: (discordID: string) => Promise<SocketInitInfo>
 	onMessagePost: (data: SocketPushMessage) => void
+	onMessageFetch: (data: SocketMessageFetch) => Promise<SocketForwardedMessage[]>
 }
 
 export class SocketManager {
@@ -123,7 +134,7 @@ export class SocketManager {
 				}
 			}
 
-			this.io.to(socket.id).emit('socket-init', socketInfo)
+			socket.emit('socket-init', socketInfo)
 		})
 
 		socket.on('message-post', (dataUnknown: any) => {
@@ -135,6 +146,19 @@ export class SocketManager {
 			}
 			this.hooks.onMessagePost({ discordID, ...data })
 		})
+
+		socket.on('message-fetch', async (dataUnknown: any) => {
+			if (!this.validateMessageFetch(dataUnknown)) return
+			const data = dataUnknown as {
+				guildID: string
+				channelID: string
+				limit: number
+				before?: string
+			}
+
+			const messages = await this.hooks.onMessageFetch({ discordID, ...data })
+			socket.emit('message-fetch', messages)
+		})
 	}
 
 	validateMessagePost = (data: any) => {
@@ -143,6 +167,16 @@ export class SocketManager {
 			typeof data.channelID === 'string' &&
 			typeof data.content === 'string' &&
 			typeof data.guildID === 'string'
+		)
+	}
+
+	validateMessageFetch = (data: any) => {
+		return (
+			(Object.keys(data).length === 3 || Object.keys(data).length === 4) &&
+			typeof data.guildID === 'string' &&
+			typeof data.channelID === 'string' &&
+			typeof data.limit === 'number' &&
+			((typeof data.before === 'undefined') || (data.before && typeof data.before === 'string'))
 		)
 	}
 
@@ -157,19 +191,19 @@ export class SocketManager {
 	// channel kick   => single user
 	// guild kick     => single user
 
-	forwardTypingIndicator = (discordUsername: string, channelID: string) => {}
-	forwardMessageEdit = (message: SocketForwardedMessage) => {}
+	forwardTypingIndicator = (discordUsername: string, channelID: string) => { }
+	forwardMessageEdit = (message: SocketForwardedMessage) => { }
 	forwardMessage = (message: SocketForwardedMessage) => {
 		this.io
 			.to(makeChannelKey(message.channelID))
 			.emit('forward-message', message)
 	}
-	forwardGuildCreation = (guildInfo: GuildInfo) => {}
-	forwardChannelCreaton = (channelInfo: ChannelInfo) => {}
-	forwardGuildDeletion = (guildInfo: GuildInfo) => {}
-	forwardChannelDeletion = (channelInfo: ChannelInfo) => {}
-	forwardChannelKick = (discordID: string, channelID: string) => {}
-	forwardGuildKick = (discordID: string, channelID: string) => {}
+	forwardGuildCreation = (guildInfo: GuildInfo) => { }
+	forwardChannelCreaton = (channelInfo: ChannelInfo) => { }
+	forwardGuildDeletion = (guildInfo: GuildInfo) => { }
+	forwardChannelDeletion = (channelInfo: ChannelInfo) => { }
+	forwardChannelKick = (discordID: string, channelID: string) => { }
+	forwardGuildKick = (discordID: string, channelID: string) => { }
 }
 
 // FUNCTIONS INITIATED BY BACKEND

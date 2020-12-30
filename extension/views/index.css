@@ -38,12 +38,12 @@ body {
 	align-items: stretch;
 	flex: 8 0 auto;
 	padding: 20px;
+	
 }
 
 #message-list {
 	height: 100%;
 	overflow-y: scroll;
-	display: flex;
 	flex-direction: column;
 	justify-content: flex-end;
 	align-items: stretch;

@@ -18,57 +18,43 @@ const setActiveChannel = () => {
 	document.getElementById(`channel-${currentChannel.id}`).classList.add('channel-container-active');
 };
 
-const setGuildNotification = guildID => {
-	console.log('asfd')
-	if (currentGuild.id === `guild-${guildID}`) return;
+const addNotificationDot = (type, id) => {
+	if (currentGuild.id === `${type}-${id}` || currentChannel.id === `${type}-${id}`) return;
+	
 	const dotTemplate = `
-		<span class='guild-notification-dot'></span>
+		<span class='${type}-notification-dot'></span>
 	`
 	
 	const dot = buildFromTemplate(dotTemplate, {});
-	const guild = document.getElementById(`guild-${guildID}`);
+	const unread = document.getElementById(`${type}-${id}`);
 
-	guild.appendChild(dot);
+	unread.appendChild(dot);
 
-	document.getElementById(`guild-${guildID}`).classList.add('guild-container-notification');
+	document.getElementById(`${type}-${id}`).classList.add(`${type}-container-notification`);
 }
 
-const removeGuildNotification = () => {
-	const guild = document.getElementById(`guild-${currentGuild.id}`)
+const removeNotificationDot = type => {
+	let elements;
 
-	guild.classList.remove('guild-container-notification');
-	var elements = guild.getElementsByClassName("guild-notification-dot");
+	if (type === 'channel') {
+		localMessageStorage[currentGuild.id].channels[currentChannel.id].unread = false;
 
+		const channel = document.getElementById(`channel-${currentChannel.id}`)
+	
+		channel.classList.remove('channel-container-notification');
+		elements = channel.getElementsByClassName("channel-notification-dot");
+	
+	} else {
+		localMessageStorage[currentGuild.id].unread = false;
+		const guild = document.getElementById(`guild-${currentGuild.id}`)
+	
+		guild.classList.remove('guild-container-notification');
+		elements = guild.getElementsByClassName("guild-notification-dot");
+	}
+	
 	while (elements[0]) {
 		elements[0].parentNode.removeChild(elements[0]);
 	}
-
-}
-
-const setChannelNotification = channelID => {
-	if (currentChannel.id === `channel-${channelID}`) return;
-	const dotTemplate = `
-		<span class='channel-notification-dot'></span>
-	`
-
-	const dot = buildFromTemplate(dotTemplate, {});
-	const channel = document.getElementById(`channel-${channelID}`);
-
-	channel.appendChild(dot);
-
-	document.getElementById(`channel-${channelID}`).classList.add('channel-container-notification');
-}
-
-const removeChannelNotification = () => {
-	const channel = document.getElementById(`channel-${currentChannel.id}`)
-
-	channel.classList.remove('channel-container-notification');
-	var elements = channel.getElementsByClassName("channel-notification-dot");
-
-	while (elements[0]) {
-		elements[0].parentNode.removeChild(elements[0]);
-	}
-
 }
 
 const buildFromTemplate = (template, templateValues) => {
@@ -187,12 +173,20 @@ const setGuilds = () => {
 		elemInner.id = `guild-${guild.id}`;
 
 		elemInner.onclick = () => {
+			for (const channel of Object.values(localMessageStorage[currentGuild.id].channels)) {
+				if (channel.unread) {
+					currentGuild.unread = true
+					addNotificationDot('guild', currentGuild.id);
+					break;
+				}
+			}
+
 			currentGuild = guild;
 			const channelList = Object.values(guild.channels);
 			currentChannel = channelList.length > 0 ? channelList[0] : null;
 
 			setActiveGuild();
-			removeGuildNotification();
+			removeNotificationDot('guild');
 			setChannels();
 			setChats();
 		};
@@ -235,12 +229,16 @@ const setChannels = () => {
 			currentChannel = channel;
 
 			setActiveChannel();
-			removeChannelNotification();
+			removeNotificationDot('channel');
 			document.getElementById('message-input').placeholder = `Message #${channel.name}`;
 			setChats();
 		};
 
 		container.appendChild(elem);
+
+		if (localMessageStorage[currentGuild.id].channels[channel.id].unread) {
+			addNotificationDot('channel', channel.id);
+		}
 	}
 
 	setActiveChannel();
@@ -249,7 +247,7 @@ const setChannels = () => {
 
 
 const setChats = () => {
-	document.getElementById('message-list').innerHTML = '<a id="message-list-tail"></a>';
+	document.getElementById('message-list').innerHTML = '<div id="message-list-tail"></div>';
 
 	if (!currentChannel) { return; }
 
@@ -295,14 +293,24 @@ const handleMessage = data => {
 	if (currentChannel && data.channelID === currentChannel.id) {
 		createMessage(data, data.author.id !== prevAuthor);
 	} else {
+		// Set all non-current channels unread to true
+		localMessageStorage[data.guildID].channels[data.channelID].unread = true;
+
 		if (currentGuild && data.guildID === currentGuild.id) {
-			setChannelNotification(data.channelID);
+			addNotificationDot('channel', data.channelID);
 		} else {
-			setGuildNotification(data.guildID);
+			localMessageStorage[data.guildID].unread = true;
+			addNotificationDot('guild', data.guildID);
 		}
 	}
 };
 
+socket.on('message-fetch', data => {
+	console.log(data)
+	localMessageStorage[currentGuild.id].channels[currentChannel.id].messages = [...data, ...localMessageStorage[currentGuild.id].channels[currentChannel.id].messages]
+	setChats();
+
+})
 socket.on('forward-message', handleMessage);
 socket.on('socket-init', data => {
 	localMessageStorage = {};
@@ -313,6 +321,7 @@ socket.on('socket-init', data => {
 			id: guild.id,
 			name: guild.name,
 			icon: guild.icon,
+			unread: false,
 			channels: {},
 		};
 
@@ -320,6 +329,7 @@ socket.on('socket-init', data => {
 			localMessageStorage[guild.id].channels[channel.id] = {
 				id: channel.id,
 				name: channel.name,
+				unread: false,
 				messages: [],
 			};
 		}
@@ -332,6 +342,8 @@ socket.on('socket-init', data => {
 		const channelsList = Object.values(currentGuild.channels);
 		currentChannel = channelsList.length > 0 ? channelsList[0] : null;
 	}
+
+	socket.emit('message-fetch', {guildID: currentGuild.id, channelID: currentChannel.id, limit: 20});
 
 	setGuilds();
 	setChannels();
