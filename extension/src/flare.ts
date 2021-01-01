@@ -1,6 +1,7 @@
 import { v4 as uuidV4 } from 'uuid'
 import * as vscode from 'vscode'
 import { Account, AccountOps } from './account'
+import { constants } from './contstants'
 
 export class Flare {
 	context: vscode.ExtensionContext
@@ -73,9 +74,12 @@ export class Flare {
 		)
 
 		const cssUri = webview.asWebviewUri(
-		  vscode.Uri.joinPath(this.context.extensionUri, "out/compiled", "Discord.css")
-		);
-
+			vscode.Uri.joinPath(
+				this.context.extensionUri,
+				'out/compiled',
+				'Discord.css'
+			)
+		)
 
 		const stylesResetUri = webview.asWebviewUri(
 			vscode.Uri.joinPath(this.context.extensionUri, 'media', 'reset.css')
@@ -92,11 +96,24 @@ export class Flare {
                         Use a content security policy to only allow loading images from https or from our extension directory,
                         and only allow scripts that have a specific nonce.
                     -->
-                    <meta http-equiv="Content-Security-Policy" content="img-src https: data:; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}';">
+                    <meta http-equiv="Content-Security-Policy" content="img-src https: data:; style-src 'unsafe-inline' ${
+						webview.cspSource
+					}; script-src 'nonce-${nonce}';">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <link href="${stylesResetUri}" rel="stylesheet">
                     <link href="${cssUri}" rel="stylesheet">
                     <script nonce="${nonce}">
+                        var gBaseURL = '${constants.baseURL}';
+                        var gSessionID = '${
+							this.account.signedIn
+								? this.account.sessionID
+								: 'ERR_NO_SESSION'
+						}';
+	                    var gDiscordID = '${
+							this.account.signedIn
+								? this.account.email
+								: 'ERR_NO_SESSION'
+						}';
                     </script>
                 </head>
                 <body>

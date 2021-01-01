@@ -9,26 +9,27 @@ export interface SocketAttachment {
 }
 
 export interface SocketForwardedMessage {
-    author: {
-        id: string
-        name: string
-        pfp: string
-    }
-    messageID: string
-    channelID: string
-    guildID: string
-    timestamp: string
-    editedTimestamp: string | null
-    content: string
-    attachments: SocketAttachment[]
+	author: {
+		id: string
+		name: string
+		pfp: string
+	}
+	messageID: string
+	channelID: string
+	guildID: string
+	timestamp: string
+	editedTimestamp: string | null
+	content: string
+	attachments: SocketAttachment[]
 }
-
 
 // ################## GuildIcon.svelte ##################
 
 export interface ChannelInfo {
 	id: string
 	name: string
+	messages: SocketForwardedMessage[]
+	unread: number
 }
 
 export interface GuildInfo {
@@ -36,4 +37,11 @@ export interface GuildInfo {
 	name: string
 	icon: string | null
 	channels: ChannelInfo[]
+	unread: number
+}
+
+export interface User {
+	discordID: string
+	sessionID: string
+	guilds: GuildInfo[]
 }

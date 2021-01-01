@@ -4,5 +4,9 @@ declare global {
 		getState: () => any
 		setState: (state: any) => void
 	}
-	const apiBaseUrl: string
+	const gBaseURL: string
+	const gSessionID: string
+	const gDiscordID: string
 }
+
+export {}
