@@ -4,8 +4,6 @@
 	export let channelInfo: ChannelInfo
 	export let selected: boolean
 	export let onclick: () => void
-
-	$: showNotification = channelInfo.unread > 0
 </script>
 
 <style>
@@ -42,10 +40,10 @@
 <div
 	class="root
         {selected ? 'background-highlight' : ''}
-        {showNotification || selected ? 'text-highlight' : ''}
+        {channelInfo.unread || selected ? 'text-highlight' : ''}
     "
 	on:click={onclick}
 >
 	<span class="channel-name-text"> # {channelInfo.name} </span>
-	{#if showNotification}<span class="notification-dot" />{/if}
+	{#if channelInfo.unread}<span class="notification-dot" />{/if}
 </div>

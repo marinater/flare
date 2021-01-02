@@ -1,11 +1,6 @@
 <script lang="ts">
-	import type { GuildInfo } from '../user-types'
 	import GuildIcon from './GuildIcon.svelte'
-	export let guilds: GuildInfo[]
-	export let activeGuildID: string | null
-	export let setActiveGuildID: (guildID: string) => void
-
-	const generateOnClickHandler = (guildID: string) => () => setActiveGuildID(guildID)
+	import { user, activeGuild, setActiveGuildID } from '../sockets'
 </script>
 
 <style>
@@ -20,7 +15,11 @@
 </style>
 
 <div id="root">
-	{#each guilds as guild}
-		<GuildIcon guildInfo={guild} selected={guild.id === activeGuildID} onclick={() => setActiveGuildID(guild.id)} />
+	{#each $user.guilds as guild}
+		<GuildIcon
+			guildInfo={guild}
+			selected={guild.id === $activeGuild?.id}
+			onclick={() => setActiveGuildID(guild.id)}
+		/>
 	{/each}
 </div>

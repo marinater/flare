@@ -69,9 +69,11 @@ export interface SocketMessageFetch {
 // post message to discord
 // get init info
 // get previous messages
-interface SocketHooks {
+export interface SocketHooks {
 	onSocketInit: (discordID: string) => Promise<SocketInitInfo>
-	onMessagePost: (data: SocketPushMessage) => void
+	onMessagePost: (
+		data: SocketPushMessage
+	) => Promise<{ success: true } | { success: false; message: string }>
 	onMessageFetch: (
 		data: SocketMessageFetch
 	) => Promise<SocketForwardedMessage[]>
@@ -146,7 +148,7 @@ export class SocketManager {
 				content: string
 				guildID: string
 			}
-			this.hooks.onMessagePost({ discordID, ...data })
+			return this.hooks.onMessagePost({ discordID, ...data })
 		})
 
 		socket.on('message-fetch', async (dataUnknown: any) => {

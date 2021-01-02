@@ -1,9 +1,6 @@
 <script lang="ts">
-	import type { ChannelInfo } from '../user-types'
+	import { activeGuild, activeChannel, setActiveChannelID } from '../sockets'
 	import Channel from './Channel.svelte'
-	export let channels: ChannelInfo[] | null
-	export let activeChannelID: string | null
-	export let setActiveChannelID: (channelID: string) => void
 </script>
 
 <style>
@@ -21,13 +18,11 @@
 
 <div id="root">
 	<div id="header">TEXT CHANNELS</div>
-	{#if channels}
-		{#each channels as channel}
-			<Channel
-				channelInfo={channel}
-				selected={channel.id === activeChannelID}
-				onclick={() => setActiveChannelID(channel.id)}
-			/>
-		{/each}
-	{/if}
+	{#each $activeGuild?.channels || [] as channel}
+		<Channel
+			channelInfo={channel}
+			selected={channel.id === $activeChannel?.id}
+			onclick={() => setActiveChannelID(channel.id)}
+		/>
+	{/each}
 </div>

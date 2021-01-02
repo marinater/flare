@@ -2,7 +2,6 @@
 	import ChatInput from './ChatInput.svelte'
 	import ChatMessage from './ChatMessage.svelte'
 	import { afterUpdate, beforeUpdate } from 'svelte'
-	import type { Message } from '../user-types'
 	import { activeChannel } from '../sockets'
 
 	$: messages = $activeChannel?.messages || null
@@ -47,6 +46,8 @@
 		white-space: normal;
 		hyphens: auto;
 		word-break: break-word;
+
+		padding-right: 53px;
 	}
 
 	.message-list > :global(:first-child) {

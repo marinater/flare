@@ -27,6 +27,17 @@ export const setActiveGuildID = (guildID: string) => {
 	user.update(user => {
 		const $user = cloneDeep(user)
 		$user.activeGuildID = guildID
+
+		const guild = $user.guilds.find(x => x.id === guildID)
+		const channel = guild?.channels[0]
+		$user.activeChannelID = channel?.id || null
+
+		if (guild && channel && channel.unread) {
+			guild.unread -= 1
+			channel.unread = false
+		}
+
+		console.log($user)
 		return $user
 	})
 }
@@ -35,6 +46,15 @@ export const setActiveChannelID = (channelID: string) => {
 	user.update(user => {
 		const $user = cloneDeep(user)
 		$user.activeChannelID = channelID
+		const guild = $user.guilds.find(x => x.id === $user.activeGuildID)
+		const channel = guild?.channels.find(x => x.id === channelID)
+
+		if (guild && channel && channel.unread) {
+			guild.unread -= 1
+			channel.unread = false
+		}
+
+		console.log($user)
 		return $user
 	})
 }
@@ -44,20 +64,26 @@ const socket = io(gBaseURL, { auth: { sessionID: gSessionID } })
 socket.on('forward-message', (dataUnknown: any) => {
 	const data = dataUnknown as SocketForwardedMessage
 	user.update(user => {
-		const newUser = cloneDeep(user)
+		const $user = cloneDeep(user)
 
-		const guild = newUser.guilds.find(x => x.id === data.guildID)
+		const guild = $user.guilds.find(x => x.id === data.guildID)
 		if (!guild) {
-			return user
+			return $user
 		}
 
 		const channel = guild.channels.find(x => x.id === data.channelID)
 		if (!channel) {
-			return user
+			return $user
 		}
 
-		channel.messages.push({ ...data, read: false })
-		return newUser
+		channel.messages.push(data)
+
+		if (data.channelID !== $user.activeChannelID && !channel.unread) {
+			guild.unread += 1
+			channel.unread = true
+		}
+
+		return $user
 	})
 })
 
@@ -67,23 +93,23 @@ socket.emit('socket-init', (dataUnknown: any) => {
 	// TODO: VALIDATE dataUnknown
 	const data = dataUnknown as SocketInitInfo
 	user.update(user => {
-		const newUser = cloneDeep(user)
+		const $user = cloneDeep(user)
 
-		newUser.discordID = data.discordID
-		newUser.activeGuildID = data.guilds[0]?.id || null
-		newUser.activeChannelID = data.guilds[0]?.channels[0]?.id || null
+		$user.discordID = data.discordID
+		$user.activeGuildID = data.guilds[0]?.id || null
+		$user.activeChannelID = data.guilds[0]?.channels[0]?.id || null
 
-		newUser.guilds = data.guilds.map(guild => ({
+		$user.guilds = data.guilds.map(guild => ({
 			...guild,
 			unread: 0,
 			channels: guild.channels.map(channel => ({
 				...channel,
 				messages: [],
-				unread: 0
+				unread: false
 			}))
 		}))
 
-		return newUser
+		return $user
 	})
 })
 

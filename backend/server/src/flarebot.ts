@@ -4,10 +4,10 @@ import { DatabaseCodes, usersManager } from './controllers/data-store'
 import {
 	GuildInfo,
 	SocketForwardedMessage,
+	SocketHooks,
 	SocketInitInfo,
 	SocketManager,
 	SocketMessageFetch,
-	SocketPushMessage,
 } from './controllers/sockets'
 import { createRegistrationLink } from './routes/auth/discord'
 import { AppSettings } from './server-utils'
@@ -68,6 +68,18 @@ const getGuildInfo = async (guildID: string, discordID: string) => {
 		channels,
 	} as GuildInfo
 }
+
+const sendDiscordMessage = (
+	message: string | Discord.MessageEmbed,
+	channel: Discord.TextChannel | Discord.DMChannel | Discord.NewsChannel
+) => {
+	if (typeof message === 'string') message = message.substring(0, 2000)
+	return channel.send(message).catch((err) => {
+		console.error(err)
+		return null
+	})
+}
+
 // #############################################################################
 
 const extractMessageContents = (
@@ -103,13 +115,11 @@ export class FlareBot {
 	constructor(io: SocketServer) {
 		client.login(AppSettings.discordToken)
 
-		const socketHooks = {
+		const socketHooks = (this.socketManager = new SocketManager(io, {
 			onSocketInit: this.onSocketInit,
 			onMessagePost: this.onMessagePost,
-			onMessageFetch: this.onMessageFetch
-		}
-
-		this.socketManager = new SocketManager(io, socketHooks)
+			onMessageFetch: this.onMessageFetch,
+		}))
 	}
 
 	// #############################################################################
@@ -117,14 +127,17 @@ export class FlareBot {
 
 	onLinkCommand = (message: Discord.Message) => {
 		const responseURL = createRegistrationLink(message.author.id)
-		message.author.send(`Click this link to register: ${responseURL}`)
+		message.author
+			.send(`Click this link to register: ${responseURL}`)
+			.catch((err) => console.error(err))
 	}
 
 	onConnectCommand = async (message: Discord.Message) => {
 		// make sure user sends in server
 		if (message.guild === null)
-			message.channel.send(
-				`Please use this command inside the server you would like to connect to.`
+			sendDiscordMessage(
+				`Please use this command inside the server you would like to connect to.`,
+				message.channel
 			)
 		else {
 			// add person to guild
@@ -133,20 +146,23 @@ export class FlareBot {
 				message.guild.id
 			)
 			if (result)
-				message.channel.send(
-					`Successfully linked ${message.author} to ${message.guild.name}!`
+				sendDiscordMessage(
+					`Successfully linked ${message.author} to ${message.guild.name}!`,
+					message.channel
 				)
 			else
-				message.channel.send(
-					`There was an error linking ${message.author} to ${message.guild.name}!`
+				sendDiscordMessage(
+					`There was an error linking ${message.author} to ${message.guild.name}!`,
+					message.channel
 				)
 		}
 	}
 
 	onDisconnectCommand = async (message: Discord.Message) => {
 		if (message.guild === null)
-			message.channel.send(
-				`Please use this command inside the server you would like to disconnect from.`
+			sendDiscordMessage(
+				`Please use this command inside the server you would like to disconnect from.`,
+				message.channel
 			)
 		else {
 			const result = await usersManager.removeUserFromGuild(
@@ -154,12 +170,14 @@ export class FlareBot {
 				message.guild.id
 			)
 			if (result)
-				message.channel.send(
-					`Successfully disconnected ${message.author} from ${message.guild.name}`
+				sendDiscordMessage(
+					`Successfully disconnected ${message.author} from ${message.guild.name}`,
+					message.channel
 				)
 			else
-				message.channel.send(
-					`There was an error disconnecting ${message.author} from ${message.guild.name}!`
+				sendDiscordMessage(
+					`There was an error disconnecting ${message.author} from ${message.guild.name}!`,
+					message.channel
 				)
 		}
 	}
@@ -186,7 +204,7 @@ export class FlareBot {
 				}
 			)
 
-		message.channel.send(helpEmbed)
+		sendDiscordMessage(helpEmbed, message.channel)
 	}
 
 	// #############################################################################
@@ -202,7 +220,7 @@ export class FlareBot {
 			console.log(`Removed guild ${guild.name}:${guild.id} from database`)
 			usersManager.removeGuild(guild.id)
 		})
-		client.on('messageUpdate', () => { })
+		client.on('messageUpdate', () => {})
 		client.on('message', async (message) => {
 			switch (message.content) {
 				case '!link':
@@ -232,8 +250,9 @@ export class FlareBot {
 
 	// #############################################################################
 
-	onMessageFetch = async (data: SocketMessageFetch): Promise<SocketForwardedMessage[]> => {
-	
+	onMessageFetch = async (
+		data: SocketMessageFetch
+	): Promise<SocketForwardedMessage[]> => {
 		const guild = await getGuildFromGuildID(data.guildID)
 		if (!guild) return []
 
@@ -253,34 +272,57 @@ export class FlareBot {
 
 		const channel = channelUnknown as Discord.TextChannel
 
-		return channel.messages.fetch({ limit: data.limit, before: data.before }).then(messages => messages.map(extractMessageContents)).catch(() => [])
+		return channel.messages
+			.fetch({ limit: data.limit, before: data.before })
+			.then((messages) => messages.map(extractMessageContents))
+			.catch(() => [])
 	}
 
-
-	onMessagePost = async (data: SocketPushMessage) => {
+	onMessagePost: SocketHooks['onMessagePost'] = async (data) => {
 		const guild = await getGuildFromGuildID(data.guildID)
-		if (!guild) return
+		if (!guild) return { success: false, message: 'guild does not exist' }
 
 		const guildMember = await getGuildMemberFromDiscordID(
 			data.discordID,
 			guild
 		)
 
-		if (!guildMember) return
+		if (!guildMember)
+			return {
+				success: false,
+				message: 'user is not a member of the provided guild',
+			}
 
 		const channelUnknown = await getChannelFromChannelID(data.channelID)
 
 		if (!channelUnknown || !guildMember.hasPermission('SEND_MESSAGES'))
-			return
+			return {
+				success: false,
+				message:
+					'user does not have permissions to send messages to the given channel',
+			}
 
-		if (channelUnknown.type !== 'text') return
+		if (channelUnknown.type !== 'text') {
+			return {
+				success: false,
+				message:
+					'provided channel does not support sending text messages',
+			}
+		}
 
 		const channel = channelUnknown as Discord.TextChannel
 
-		const res = await channel.send(
-			`${guildMember.displayName}: ${data.content}`
+		const res = await sendDiscordMessage(
+			`${guildMember.displayName}: ${data.content}`,
+			channel
 		)
-		if (res.guild === null) return
+
+		if (!res || res.guild === null) {
+			return {
+				success: false,
+				message: 'error while trying to send the message',
+			}
+		}
 
 		// @ts-ignore
 		const extractedMessage = extractMessageContents(res)
@@ -292,6 +334,8 @@ export class FlareBot {
 		extractedMessage.content = data.content
 
 		this.socketManager.forwardMessage(extractedMessage)
+
+		return { success: true }
 	}
 
 	onSocketInit = async (discordID: string): Promise<SocketInitInfo> => {

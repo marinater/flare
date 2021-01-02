@@ -20,7 +20,7 @@
 
 	.data-container {
 		flex: 1 1;
-		padding-left: 8px;
+		padding-left: 15px;
 	}
 
 	.info-row {

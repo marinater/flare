@@ -19,14 +19,14 @@ export interface Message {
 	editedTimestamp: string | null
 	content: string
 	attachments: Attachment[]
-	read: boolean
+	// read: boolean
 }
 
 export interface ChannelInfo {
 	id: string
 	name: string
 	messages: Message[]
-	unread: number
+	unread: boolean
 }
 
 export interface GuildInfo {
