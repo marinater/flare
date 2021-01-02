@@ -1,16 +1,13 @@
 <script lang="ts">
-	import type { GuildInfo } from '../types'
+	import type { GuildInfo } from '../user-types'
 	export let guildInfo: GuildInfo
 	export let selected: boolean
 	export let onclick: () => void
 
-	$: showNotification = guildInfo.unread > 0
-
-	const guildAbbreviation = guildInfo.name
+	$: guildAbbreviation = guildInfo.name
 		.split(' ')
 		.map(x => (x ? x[0] : ''))
 		.join('')
-	console.log('here')
 </script>
 
 <style>
@@ -26,6 +23,7 @@
 		transition: 0.25s ease-out;
 		overflow: hidden;
 		margin-bottom: 8px;
+		cursor: pointer;
 	}
 
 	.selected,
@@ -62,7 +60,7 @@
 	{#if guildInfo.icon}
 		<img class="guild-image" alt={`icon for ${guildInfo.name}`} src={guildInfo.icon} />
 	{:else}<span class="name-text"> {guildAbbreviation} </span>{/if}
-	{#if showNotification}
+	{#if guildInfo.unread > 0}
 		<div class="notification-dot" />
 	{/if}
 </div>

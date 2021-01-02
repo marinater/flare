@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { GuildInfo } from '../types'
+	import type { GuildInfo } from '../user-types'
 	import GuildIcon from './GuildIcon.svelte'
 	export let guilds: GuildInfo[]
 	export let activeGuildID: string | null

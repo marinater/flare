@@ -1,11 +1,35 @@
 <script lang="ts">
-	export let placeholder: string
+	import { handlers, activeChannel, activeGuild } from '../sockets'
+
+	$: placeholder = $activeChannel?.name
+		? `Message #${$activeChannel!.name}`
+		: 'Run !link inside the server you want to receive updates for!'
+
+	let inputValue: string
+
+	const onKeyPress: svelte.JSX.EventHandler<KeyboardEvent, HTMLInputElement> = event => {
+		if (event.keyCode !== 13) {
+			return
+		}
+
+		if (!$activeChannel && !$activeGuild) {
+			return
+		}
+
+		const retMessage = {
+			channelID: $activeChannel!.id,
+			guildID: $activeGuild!.id,
+			content: inputValue
+		}
+
+		handlers.postMessage(retMessage)
+		inputValue = ''
+	}
 </script>
 
 <style>
 	input {
-		flex-grow: 0;
-		flex-shrink: 0;
+		flex: none;
 		width: 100%;
 		height: 44px;
 		background-color: var(--vscode-input-background);
@@ -27,4 +51,4 @@
 	}
 </style>
 
-<input {placeholder} />
+<input {placeholder} on:keypress={onKeyPress} bind:value={inputValue} />

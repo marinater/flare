@@ -1,5 +1,3 @@
-// ################## ChatMessage.svelte ##################
-
 export interface SocketAttachment {
 	id: string
 	name: string | null
@@ -23,25 +21,33 @@ export interface SocketForwardedMessage {
 	attachments: SocketAttachment[]
 }
 
-// ################## GuildIcon.svelte ##################
-
-export interface ChannelInfo {
-	id: string
-	name: string
-	messages: SocketForwardedMessage[]
-	unread: number
+export interface SocketPushMessage {
+	guildID: string
+	channelID: string
+	content: string
 }
 
-export interface GuildInfo {
+interface SocketChannelInfo {
+	id: string
+	name: string
+}
+
+export interface SocketGuildInfo {
 	id: string
 	name: string
 	icon: string | null
-	channels: ChannelInfo[]
-	unread: number
+	channels: SocketChannelInfo[]
 }
 
-export interface User {
+export interface SocketInitInfo {
+	guilds: SocketGuildInfo[]
 	discordID: string
-	sessionID: string
-	guilds: GuildInfo[]
+}
+
+export interface SocketMessageFetch {
+	guildID: string
+	channelID: string
+	discordID: string
+	limit: number
+	before?: string
 }

@@ -1,6 +1,8 @@
 <script lang="ts">
-	import type { SocketForwardedMessage } from '../types'
-	export let message: SocketForwardedMessage
+	import type { Message } from '../user-types'
+	import dayjs from 'dayjs'
+	export let message: Message
+	export let showHeader: boolean
 </script>
 
 <style>
@@ -35,7 +37,7 @@
 	}
 
 	.content-row {
-		line-height: 20px;
+		line-height: 18px;
 	}
 
 	.info-author {
@@ -54,13 +56,17 @@
 	}
 </style>
 
-<div class="root">
-	<div class="avatar-container"><img class="avatar-img" alt="user avatar" src={message.author.pfp} /></div>
+<div class="root" style="padding-top: {showHeader ? '15px' : '3px'}">
+	<div class="avatar-container" style="height: {showHeader ? '38px' : 'initial'}">
+		{#if showHeader}<img class="avatar-img" alt="user avatar" src={message.author.pfp} />{/if}
+	</div>
 	<div class="data-container">
-		<div class="info-row">
-			<span class="info-author"> {message.author.name} </span>
-			<span class="info-timestamp"> {message.timestamp} </span>
-		</div>
+		{#if showHeader}
+			<div class="info-row">
+				<span class="info-author"> {message.author.name} </span>
+				<span class="info-timestamp"> {dayjs(message.timestamp).format('MM/DD/YY [at] h:mm A')} </span>
+			</div>
+		{/if}
 		<div class="content-row">{message.content}</div>
 		<div class="attachment-container">
 			{#each message.attachments as attachment}

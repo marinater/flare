@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ChannelInfo } from '../types'
+	import type { ChannelInfo } from '../user-types'
 
 	export let channelInfo: ChannelInfo
 	export let selected: boolean
@@ -20,6 +20,7 @@
 	.background-highlight,
 	.root:hover {
 		background-color: var(--vscode-editor-selectionBackground);
+		cursor: pointer;
 	}
 
 	.text-highlight {
@@ -45,6 +46,6 @@
     "
 	on:click={onclick}
 >
-	<span class="channel-name-text"> {channelInfo.name} </span>
+	<span class="channel-name-text"> # {channelInfo.name} </span>
 	{#if showNotification}<span class="notification-dot" />{/if}
 </div>

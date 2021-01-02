@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ChannelInfo } from '../types'
+	import type { ChannelInfo } from '../user-types'
 	import Channel from './Channel.svelte'
 	export let channels: ChannelInfo[] | null
 	export let activeChannelID: string | null
