@@ -16,10 +16,16 @@ export const sequelize = new Sequelize(AppSettings.databaseURL)
 
 sequelize
 	.authenticate()
-	.then(() => console.log(`sequelize connected to database at ${AppSettings.databaseURL}`))
+	.then(() =>
+		console.log(
+			`sequelize connected to database at ${AppSettings.databaseURL}`
+		)
+	)
 	// .then(() => sequelize.sync({ force: true }))
-	.catch(error => {
-		console.error(`sequelize could not connect to database at ${AppSettings.databaseURL}: ${error}`)
+	.catch((error) => {
+		console.error(
+			`sequelize could not connect to database at ${AppSettings.databaseURL}: ${error}`
+		)
 		process.exit(1)
 	})
 
@@ -114,5 +120,17 @@ Guild.init(
 	{ sequelize }
 )
 
-Guild.belongsToMany(User, { through: 'guild_user', sourceKey: 'guildID', targetKey: 'discordID', onDelete: 'CASCADE', onUpdate: 'CASCADE' })
-User.belongsToMany(Guild, { through: 'guild_user', sourceKey: 'discordID', targetKey: 'guildID', onDelete: 'CASCADE', onUpdate: 'CASCADE' })
+Guild.belongsToMany(User, {
+	through: 'guild_user',
+	sourceKey: 'guildID',
+	targetKey: 'discordID',
+	onDelete: 'CASCADE',
+	onUpdate: 'CASCADE',
+})
+User.belongsToMany(Guild, {
+	through: 'guild_user',
+	sourceKey: 'discordID',
+	targetKey: 'guildID',
+	onDelete: 'CASCADE',
+	onUpdate: 'CASCADE',
+})
