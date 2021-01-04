@@ -1,35 +1,32 @@
 <script lang="ts">
 	import ChatInput from './ChatInput.svelte'
+	import InfiniteLoading from 'svelte-infinite-loading'
 	import ChatMessage from './ChatMessage.svelte'
 	import { afterUpdate, beforeUpdate } from 'svelte'
-	import { handlers, user, activeGuild, activeChannel } from '../sockets'
+	import { handlers, activeGuild, activeChannel } from '../sockets'
 
 	$: messages = $activeChannel?.messages || null
 
 	let div: HTMLDivElement
 	let autoscroll: boolean
-	let alreadyFetched = false
 
-	const setAutoScroll = () => {
-		if (div && div.scrollTop === 0 && !alreadyFetched && $activeGuild && $activeChannel) {
-			alreadyFetched = true
-
-			const messageRequest = {
-				before: (messages && messages[0]?.messageID) || undefined,
-				guildID: $activeGuild!.id,
-				channelID: $activeChannel!.id,
-				limit: 30
-			}
-
-			console.log(messageRequest)
-
-			handlers.fetchMessages(messageRequest, numMessages => {
-				if (numMessages > 0) {
-					alreadyFetched = false
-				}
-			})
+	const infiniteHandler = ({ detail: { loaded, complete } }: any) => {
+		if (!$activeGuild || !$activeChannel) {
+			setTimeout(loaded, 30)
+			return
 		}
 
+		const messageRequest = {
+			before: (messages && messages[0]?.messageID) || undefined,
+			guildID: $activeGuild!.id,
+			channelID: $activeChannel!.id,
+			limit: 30
+		}
+
+		handlers.fetchMessages(messageRequest, messageCount => (messageCount > 0 ? loaded() : complete()))
+	}
+
+	const setAutoScroll = () => {
 		autoscroll = div && div.offsetHeight + div.scrollTop > div.scrollHeight - 20
 	}
 
@@ -61,7 +58,7 @@
 
 		display: flex;
 		flex-direction: column;
-		flex-flow: column nowrap;
+		/* flex-flow: column nowrap; */
 
 		white-space: normal;
 		hyphens: auto;
@@ -70,9 +67,9 @@
 		padding-right: 53px;
 	}
 
-	.message-list > :global(:first-child) {
+	/* .message-list > :global(:first-child) {
 		margin-top: auto !important;
-	}
+	} */
 
 	.message-list-tail {
 		flex: 0 0 20px;
@@ -119,6 +116,14 @@
 
 <div class="root">
 	<div class="message-list" bind:this={div} on:scroll={setAutoScroll}>
+		<InfiniteLoading on:infinite={infiniteHandler} direction="top">
+			<div slot="noMore">
+				{#if $activeChannel}
+					<h1>Welcome to #{$activeChannel?.name}</h1>
+				{/if}
+			</div>
+		</InfiniteLoading>
+
 		{#if messages}
 			{#each messages as message, i}
 				<ChatMessage
