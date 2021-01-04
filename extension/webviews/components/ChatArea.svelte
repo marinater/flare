@@ -2,14 +2,34 @@
 	import ChatInput from './ChatInput.svelte'
 	import ChatMessage from './ChatMessage.svelte'
 	import { afterUpdate, beforeUpdate } from 'svelte'
-	import { activeChannel } from '../sockets'
+	import { handlers, user, activeGuild, activeChannel } from '../sockets'
 
 	$: messages = $activeChannel?.messages || null
 
 	let div: HTMLDivElement
 	let autoscroll: boolean
+	let alreadyFetched = false
 
 	const setAutoScroll = () => {
+		if (div && div.scrollTop === 0 && !alreadyFetched && $activeGuild && $activeChannel) {
+			alreadyFetched = true
+
+			const messageRequest = {
+				before: (messages && messages[0]?.messageID) || undefined,
+				guildID: $activeGuild!.id,
+				channelID: $activeChannel!.id,
+				limit: 30
+			}
+
+			console.log(messageRequest)
+
+			handlers.fetchMessages(messageRequest, numMessages => {
+				if (numMessages > 0) {
+					alreadyFetched = false
+				}
+			})
+		}
+
 		autoscroll = div && div.offsetHeight + div.scrollTop > div.scrollHeight - 20
 	}
 

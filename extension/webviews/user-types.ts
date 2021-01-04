@@ -19,7 +19,6 @@ export interface Message {
 	editedTimestamp: string | null
 	content: string
 	attachments: Attachment[]
-	// read: boolean
 }
 
 export interface ChannelInfo {

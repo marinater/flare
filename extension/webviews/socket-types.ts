@@ -47,7 +47,6 @@ export interface SocketInitInfo {
 export interface SocketMessageFetch {
 	guildID: string
 	channelID: string
-	discordID: string
 	limit: number
 	before?: string
 }

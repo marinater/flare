@@ -151,8 +151,9 @@ export class SocketManager {
 			return this.hooks.onMessagePost({ discordID, ...data })
 		})
 
-		socket.on('message-fetch', async (dataUnknown: any) => {
-			if (!this.validateMessageFetch(dataUnknown)) return
+		socket.on('message-fetch', async (dataUnknown: any, callback) => {
+			if (!this.validateMessageFetch(dataUnknown)) callback([])
+
 			const data = dataUnknown as {
 				guildID: string
 				channelID: string
@@ -164,7 +165,8 @@ export class SocketManager {
 				discordID,
 				...data,
 			})
-			socket.emit('message-fetch', messages)
+
+			return callback(messages)
 		})
 	}
 

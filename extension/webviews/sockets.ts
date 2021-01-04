@@ -1,7 +1,7 @@
 import cloneDeep from 'lodash.clonedeep'
 import { io } from 'socket.io-client'
 import { derived, writable } from 'svelte/store'
-import type { SocketForwardedMessage, SocketInitInfo, SocketPushMessage } from './socket-types'
+import type { SocketForwardedMessage, SocketInitInfo, SocketMessageFetch, SocketPushMessage } from './socket-types'
 import type { User } from './user-types'
 
 export const user = writable<User>({
@@ -37,7 +37,6 @@ export const setActiveGuildID = (guildID: string) => {
 			channel.unread = false
 		}
 
-		console.log($user)
 		return $user
 	})
 }
@@ -54,7 +53,6 @@ export const setActiveChannelID = (channelID: string) => {
 			channel.unread = false
 		}
 
-		console.log($user)
 		return $user
 	})
 }
@@ -113,10 +111,34 @@ socket.emit('socket-init', (dataUnknown: any) => {
 	})
 })
 
+const fetchMessages = (fetchRequest: SocketMessageFetch, callback?: (numMessages: number) => void) => {
+	socket.emit('message-fetch', fetchRequest, (dataUnknown: any) => {
+		const data = dataUnknown as SocketForwardedMessage[]
+
+		if (data.length > 0) {
+			user.update(user => {
+				const $user = cloneDeep(user)
+				const guild = $user.guilds.find(x => x.id === fetchRequest.guildID) || null
+				const channel = guild?.channels.find(x => x.id === fetchRequest.channelID) || null
+				if (!channel) {
+					return user
+				}
+
+				channel.messages = [...data.reverse(), ...channel.messages]
+
+				return $user
+			})
+		}
+
+		callback && callback(data.length)
+	})
+}
+
 const postMessage = (message: SocketPushMessage) => {
 	socket.emit('message-post', message)
 }
 
 export const handlers = {
-	postMessage
+	postMessage,
+	fetchMessages
 }
