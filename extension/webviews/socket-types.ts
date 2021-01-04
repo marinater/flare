@@ -42,6 +42,10 @@ export interface SocketGuildInfo {
 export interface SocketInitInfo {
 	guilds: SocketGuildInfo[]
 	discordID: string
+	patterns: {
+		user: string | null
+		everyone: string | null
+	}
 }
 
 export interface SocketMessageFetch {

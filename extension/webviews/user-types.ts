@@ -41,4 +41,8 @@ export interface User {
 	guilds: GuildInfo[]
 	activeGuildID: string | null
 	activeChannelID: string | null
+	patterns: {
+		user: string | null
+		everyone: string | null
+	}
 }

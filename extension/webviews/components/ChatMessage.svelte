@@ -1,8 +1,43 @@
 <script lang="ts">
+	import marked from 'marked'
+	import DOMPurify from 'dompurify'
+
 	import type { Message } from '../user-types'
 	import dayjs from 'dayjs'
+	import { patterns, discordID } from '../sockets'
+
 	export let message: Message
 	export let showHeader: boolean
+
+	let parsedContent = ''
+	let mentioned = false
+
+	const transformContent = () => {
+		let transformed = message.content
+		mentioned = false
+
+		if ($patterns?.everyone) {
+			transformed = transformed.replace($patterns.everyone!, () => {
+				console.log('set to true')
+				mentioned = true
+				return `[@everyone]`
+			})
+		}
+
+		if ($patterns?.user) {
+			transformed = transformed.replace($patterns.user!, (_, userID) => {
+				if ($discordID === userID) {
+					mentioned = true
+				}
+
+				return `[@user ${userID}]`
+			})
+		}
+
+		return DOMPurify.sanitize(marked(transformed))
+	}
+
+	$: parsedContent = transformContent()
 </script>
 
 <style>
@@ -40,6 +75,14 @@
 		line-height: 18px;
 	}
 
+	:global(.content-row > p) {
+		margin: 0;
+	}
+
+	.mentioned {
+		background-color: var(--vscode-editor-inactiveSelectionBackground);
+	}
+
 	.info-author {
 		font-weight: 600;
 		padding-right: 3px;
@@ -67,7 +110,9 @@
 				<span class="info-timestamp"> {dayjs(message.timestamp).format('MM/DD/YY [at] h:mm A')} </span>
 			</div>
 		{/if}
-		<div class="content-row">{message.content}</div>
+		<div class="content-row {mentioned ? 'mentioned' : ''}">
+			{@html parsedContent}
+		</div>
 		<div class="attachment-container">
 			{#each message.attachments as attachment}
 				{#if attachment.height === null || attachment.width === null}

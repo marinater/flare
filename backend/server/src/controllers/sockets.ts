@@ -54,6 +54,10 @@ export interface GuildInfo {
 export interface SocketInitInfo {
 	guilds: GuildInfo[]
 	discordID: string
+	patterns: {
+		user: string
+		everyone: string
+	}
 }
 
 // Retrieves old messages from server

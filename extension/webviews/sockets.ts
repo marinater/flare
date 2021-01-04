@@ -7,14 +7,40 @@ import type { User } from './user-types'
 export const user = writable<User>({
 	discordID: 'unknown',
 	guilds: [],
+	patterns: {
+		user: null,
+		everyone: null
+	},
 	activeGuildID: null,
 	activeChannelID: null
 })
 
-export const activeGuild = derived(
-	user,
-	$userStore => $userStore.guilds.find(guild => guild.id === $userStore.activeGuildID) || null
-)
+const deserializeRegExp = (serialized: string | null) => {
+	if (!serialized) {
+		return null
+	}
+
+	const fragments = serialized.match(/\/(.*?)\/([a-z]*)?$/i)
+	if (!fragments) {
+		return null
+	}
+
+	return new RegExp(fragments[1], fragments[2] || '')
+}
+
+export const patterns = derived(user, $user => ({
+	user: deserializeRegExp($user.patterns.user),
+	everyone: deserializeRegExp($user.patterns.everyone)
+}))
+
+export const discordID = derived(user, $user => $user.discordID)
+
+// export const patterns = {
+// 	user: /<@!?(\d{17,19})>/g,
+// 	everyone: /@(everyone|here)/g
+// }
+
+export const activeGuild = derived(user, $user => $user.guilds.find(guild => guild.id === $user.activeGuildID) || null)
 
 export const activeChannel = derived([user, activeGuild], ([$userStore, $activeGuild]) => {
 	if (!$activeGuild || !$userStore.activeChannelID) {
@@ -96,7 +122,10 @@ socket.emit('socket-init', (dataUnknown: any) => {
 		$user.discordID = data.discordID
 		$user.activeGuildID = data.guilds[0]?.id || null
 		$user.activeChannelID = data.guilds[0]?.channels[0]?.id || null
-
+		$user.patterns = {
+			everyone: data.patterns.everyone,
+			user: data.patterns.user
+		}
 		$user.guilds = data.guilds.map(guild => ({
 			...guild,
 			unread: 0,

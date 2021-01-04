@@ -1,4 +1,4 @@
-import Discord from 'discord.js'
+import Discord, { MessageMentions } from 'discord.js'
 import type { Server as SocketServer } from 'socket.io'
 import { DatabaseCodes, usersManager } from './controllers/data-store'
 import {
@@ -347,6 +347,10 @@ export class FlareBot {
 			return {
 				discordID,
 				guilds: [],
+				patterns: {
+					everyone: MessageMentions.EVERYONE_PATTERN.toString(),
+					user: MessageMentions.USERS_PATTERN.toString(),
+				},
 			}
 		}
 
@@ -357,6 +361,10 @@ export class FlareBot {
 		return {
 			discordID,
 			guilds: allGuilds.filter((guild) => guild !== null) as GuildInfo[],
+			patterns: {
+				everyone: MessageMentions.EVERYONE_PATTERN.toString(),
+				user: MessageMentions.USERS_PATTERN.toString(),
+			},
 		}
 	}
 }
