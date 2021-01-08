@@ -37,6 +37,11 @@ export interface SocketGuildInfo {
 	name: string
 	icon: string | null
 	channels: SocketChannelInfo[]
+	members: {
+		nickname: string | null
+		displayName: string
+		id: string
+	}[]
 }
 
 export interface SocketInitInfo {
@@ -53,4 +58,9 @@ export interface SocketMessageFetch {
 	channelID: string
 	limit: number
 	before?: string
+}
+
+export interface SocketMessageFetchResponse {
+	messages: SocketForwardedMessage[]
+	complete: boolean
 }

@@ -25,6 +25,7 @@ export interface ChannelInfo {
 	id: string
 	name: string
 	messages: Message[]
+	fetchedAll: boolean
 	unread: boolean
 }
 
@@ -34,6 +35,11 @@ export interface GuildInfo {
 	icon: string | null
 	channels: ChannelInfo[]
 	unread: number
+	members: {
+		nickname: string | null
+		displayName: string
+		id: string
+	}[]
 }
 
 export interface User {

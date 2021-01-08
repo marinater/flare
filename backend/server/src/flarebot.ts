@@ -1,4 +1,4 @@
-import Discord, { MessageMentions } from 'discord.js'
+import Discord, { Intents, MessageMentions } from 'discord.js'
 import type { Server as SocketServer } from 'socket.io'
 import { DatabaseCodes, usersManager } from './controllers/data-store'
 import {
@@ -8,11 +8,14 @@ import {
 	SocketInitInfo,
 	SocketManager,
 	SocketMessageFetch,
+	SocketMessageFetchResponse,
 } from './controllers/sockets'
 import { createRegistrationLink } from './routes/auth/discord'
 import { AppSettings } from './server-utils'
 
-const client = new Discord.Client()
+let intents = new Intents(Intents.NON_PRIVILEGED)
+intents.add('GUILD_MEMBERS')
+const client = new Discord.Client({ ws: { intents } })
 
 // #############################################################################
 
@@ -61,12 +64,27 @@ const getGuildInfo = async (guildID: string, discordID: string) => {
 		})
 		.map((channel) => ({ name: channel.name, id: channel.id }))
 
-	return {
+	const guildInfo: GuildInfo = {
 		id: guild.id,
 		name: guild.name,
 		icon: guild.iconURL(),
 		channels,
-	} as GuildInfo
+		members: await guild.members
+			.fetch()
+			.then((members) =>
+				members.map((member) => ({
+					nickname: member.nickname,
+					displayName: member.displayName,
+					id: member.id,
+				}))
+			)
+			.catch((err) => {
+				console.error(err)
+				return []
+			}),
+	}
+
+	return guildInfo
 }
 
 const sendDiscordMessage = (
@@ -252,30 +270,69 @@ export class FlareBot {
 
 	onMessageFetch = async (
 		data: SocketMessageFetch
-	): Promise<SocketForwardedMessage[]> => {
+	): Promise<SocketMessageFetchResponse> => {
 		const guild = await getGuildFromGuildID(data.guildID)
-		if (!guild) return []
+		if (!guild)
+			return {
+				messages: [],
+				complete: false,
+			}
 
 		const guildMember = await getGuildMemberFromDiscordID(
 			data.discordID,
 			guild
 		)
 
-		if (!guildMember) return []
+		if (!guildMember)
+			return {
+				messages: [],
+				complete: false,
+			}
 
 		const channelUnknown = await getChannelFromChannelID(data.channelID)
 
 		if (!channelUnknown || !guildMember.hasPermission('SEND_MESSAGES'))
-			return []
+			return {
+				messages: [],
+				complete: false,
+			}
 
-		if (channelUnknown.type !== 'text') return []
+		if (channelUnknown.type !== 'text')
+			return {
+				messages: [],
+				complete: false,
+			}
 
 		const channel = channelUnknown as Discord.TextChannel
 
-		return channel.messages
-			.fetch({ limit: data.limit, before: data.before })
+		const oldestMessageID = channel.messages
+			.fetch({ after: '1', limit: 1 })
+			.then((messages) => {
+				if (messages.first()) return messages.first()!.id
+				return null
+			})
+			.catch((err) => {
+				console.log(err)
+				return null
+			})
+
+		const messageList = channel.messages
+			.fetch({ limit: data.limit, before: data.before }, false, true)
 			.then((messages) => messages.map(extractMessageContents))
-			.catch(() => [])
+			.catch((err) => {
+				console.error(err)
+				return []
+			})
+
+		return Promise.all([oldestMessageID, messageList]).then(
+			([oldestID, messages]) => {
+				return {
+					messages,
+					complete:
+						messages[messages.length - 1]?.messageID === oldestID,
+				}
+			}
+		)
 	}
 
 	onMessagePost: SocketHooks['onMessagePost'] = async (data) => {

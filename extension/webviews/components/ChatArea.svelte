@@ -20,10 +20,13 @@
 			before: (messages && messages[0]?.messageID) || undefined,
 			guildID: $activeGuild!.id,
 			channelID: $activeChannel!.id,
-			limit: 30
+			limit: 50
 		}
 
-		handlers.fetchMessages(messageRequest, messageCount => (messageCount > 0 ? loaded() : complete()))
+		handlers.fetchMessages(messageRequest, fetchedLastMessage => {
+			loaded()
+			fetchedLastMessage && complete()
+		})
 	}
 
 	const setAutoScroll = () => {
@@ -67,9 +70,9 @@
 		padding-right: 53px;
 	}
 
-	/* .message-list > :global(:first-child) {
+	.message-list > :global(:first-child) {
 		margin-top: auto !important;
-	} */
+	}
 
 	.message-list-tail {
 		flex: 0 0 20px;
@@ -116,7 +119,7 @@
 
 <div class="root">
 	<div class="message-list" bind:this={div} on:scroll={setAutoScroll}>
-		<InfiniteLoading on:infinite={infiniteHandler} direction="top">
+		<InfiniteLoading on:infinite={infiniteHandler} direction="top" identifier={$activeChannel?.id}>
 			<div slot="noMore">
 				{#if $activeChannel}
 					<h1>Welcome to #{$activeChannel?.name}</h1>

@@ -4,7 +4,7 @@
 
 	import type { Message } from '../user-types'
 	import dayjs from 'dayjs'
-	import { patterns, discordID } from '../sockets'
+	import { patterns, discordID, activeGuild } from '../sockets'
 
 	export let message: Message
 	export let showHeader: boolean
@@ -18,9 +18,8 @@
 
 		if ($patterns?.everyone) {
 			transformed = transformed.replace($patterns.everyone!, () => {
-				console.log('set to true')
 				mentioned = true
-				return `[@everyone]`
+				return `<span class='mention-span'>@everyone</span>`
 			})
 		}
 
@@ -30,14 +29,15 @@
 					mentioned = true
 				}
 
-				return `[@user ${userID}]`
+				const user = $activeGuild?.members.find(x => x.id === userID)
+				return `<span class='mention-span'>@${user?.displayName || 'unknown'}</span>`
 			})
 		}
 
 		return DOMPurify.sanitize(marked(transformed))
 	}
 
-	$: parsedContent = transformContent()
+	$: parsedContent = message && transformContent()
 </script>
 
 <style>
@@ -78,6 +78,13 @@
 	:global(.content-row > p) {
 		margin: 0;
 	}
+
+	:global(.mention-span) {
+		color: var(--vscode-list-activeSelectionForeground);
+		background-color: var(--vscode-list-activeSelectionBackground);
+	}
+
+	/* --vscode-textLink-activeForeground */
 
 	.mentioned {
 		background-color: var(--vscode-editor-inactiveSelectionBackground);

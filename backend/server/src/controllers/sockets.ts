@@ -49,6 +49,11 @@ export interface GuildInfo {
 	name: string
 	icon: string | null
 	channels: ChannelInfo[]
+	members: {
+		nickname: string | null
+		displayName: string
+		id: string
+	}[]
 }
 
 export interface SocketInitInfo {
@@ -60,13 +65,17 @@ export interface SocketInitInfo {
 	}
 }
 
-// Retrieves old messages from server
 export interface SocketMessageFetch {
 	guildID: string
 	channelID: string
 	discordID: string
 	limit: number
 	before?: string
+}
+
+export interface SocketMessageFetchResponse {
+	messages: SocketForwardedMessage[]
+	complete: boolean
 }
 
 // FUNCTIONS INITITATED FROM VSCODE
@@ -80,7 +89,7 @@ export interface SocketHooks {
 	) => Promise<{ success: true } | { success: false; message: string }>
 	onMessageFetch: (
 		data: SocketMessageFetch
-	) => Promise<SocketForwardedMessage[]>
+	) => Promise<SocketMessageFetchResponse>
 }
 
 export class SocketManager {
@@ -156,7 +165,8 @@ export class SocketManager {
 		})
 
 		socket.on('message-fetch', async (dataUnknown: any, callback) => {
-			if (!this.validateMessageFetch(dataUnknown)) callback([])
+			if (!this.validateMessageFetch(dataUnknown))
+				callback({ messages: [], complete: false })
 
 			const data = dataUnknown as {
 				guildID: string

@@ -1,7 +1,13 @@
 import cloneDeep from 'lodash.clonedeep'
 import { io } from 'socket.io-client'
 import { derived, writable } from 'svelte/store'
-import type { SocketForwardedMessage, SocketInitInfo, SocketMessageFetch, SocketPushMessage } from './socket-types'
+import type {
+	SocketForwardedMessage,
+	SocketInitInfo,
+	SocketMessageFetch,
+	SocketMessageFetchResponse,
+	SocketPushMessage
+} from './socket-types'
 import type { User } from './user-types'
 
 export const user = writable<User>({
@@ -132,7 +138,8 @@ socket.emit('socket-init', (dataUnknown: any) => {
 			channels: guild.channels.map(channel => ({
 				...channel,
 				messages: [],
-				unread: false
+				unread: false,
+				fetchedAll: false
 			}))
 		}))
 
@@ -140,26 +147,28 @@ socket.emit('socket-init', (dataUnknown: any) => {
 	})
 })
 
-const fetchMessages = (fetchRequest: SocketMessageFetch, callback?: (numMessages: number) => void) => {
+const fetchMessages = (fetchRequest: SocketMessageFetch, callback?: (fetchedLastMessage: boolean) => void) => {
 	socket.emit('message-fetch', fetchRequest, (dataUnknown: any) => {
-		const data = dataUnknown as SocketForwardedMessage[]
+		const data = dataUnknown as SocketMessageFetchResponse
 
-		if (data.length > 0) {
-			user.update(user => {
-				const $user = cloneDeep(user)
-				const guild = $user.guilds.find(x => x.id === fetchRequest.guildID) || null
-				const channel = guild?.channels.find(x => x.id === fetchRequest.channelID) || null
-				if (!channel) {
-					return user
-				}
+		user.update(user => {
+			const $user = cloneDeep(user)
+			const guild = $user.guilds.find(x => x.id === fetchRequest.guildID) || null
+			const channel = guild?.channels.find(x => x.id === fetchRequest.channelID) || null
 
-				channel.messages = [...data.reverse(), ...channel.messages]
+			if (!channel) {
+				callback && callback(false)
+				return user
+			}
 
-				return $user
-			})
-		}
+			if (!channel.fetchedAll) {
+				channel.messages = [...data.messages.reverse(), ...channel.messages]
+				channel.fetchedAll = data.complete
+			}
 
-		callback && callback(data.length)
+			callback && setTimeout(() => callback(channel.fetchedAll), 0)
+			return $user
+		})
 	})
 }
 
